@@ -1,7 +1,10 @@
-export default function Home() {
-  return (
-    <div className="flex h-full items-center justify-center text-sm text-[rgb(120,118,112)]">
-      Wähle ein Board in der Seitenleiste, oder leg ein neues an.
-    </div>
-  );
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { BoardOverview } from "@/components/BoardOverview";
+
+export default async function Home() {
+  const session = await auth();
+  if (!session?.user) redirect("/signin");
+
+  return <BoardOverview email={session.user.email ?? ""} />;
 }

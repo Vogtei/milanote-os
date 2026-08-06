@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Tldraw } from "tldraw";
+import { Tldraw, exportAs } from "tldraw";
 import type { Editor } from "tldraw";
 import "tldraw/tldraw.css";
-import { shapeUtils, textOptions, milanoteComponents } from "@/components/BoardCanvas";
+import {
+  shapeUtils,
+  textOptions,
+  milanoteComponents,
+  StatusBanner,
+  type BoardChrome,
+} from "@/components/BoardCanvas";
+import { BoardTopBar } from "@/components/BoardTopBar";
+import { ZoomControls } from "@/components/vos/ZoomControls";
 import { minioAssetStore } from "@/lib/asset-store";
 import { saveSnapshot, loadSnapshot } from "@/lib/offline-cache";
 
@@ -17,12 +25,15 @@ const AUTOSAVE_MS = 3000;
 // synchronisieren" flow, which reads this same cache.
 export function OfflineBoardCanvas({
   id,
+  chrome,
   onTryReconnect,
 }: {
   id: string;
+  chrome: BoardChrome;
   onTryReconnect: () => void;
 }) {
   const [ready, setReady] = useState(false);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
@@ -41,11 +52,20 @@ export function OfflineBoardCanvas({
 
   function handleMount(editor: Editor) {
     editorRef.current = editor;
+    setEditor(editor);
     editor.user.updateUserPreferences({ colorScheme: "dark" });
+    editor.updateInstanceState({ isGridMode: true });
     const interval = setInterval(() => {
       saveSnapshot(id, editor.getSnapshot());
     }, AUTOSAVE_MS);
     editor.disposables.add(() => clearInterval(interval));
+  }
+
+  async function exportBoard() {
+    if (!editor) return;
+    const ids = [...editor.getCurrentPageShapeIds()];
+    if (ids.length === 0) return;
+    await exportAs(editor, ids, { format: "png", name: "board" });
   }
 
   return (
@@ -59,17 +79,22 @@ export function OfflineBoardCanvas({
           textOptions={textOptions}
         />
       )}
-      <div className="absolute left-3 top-3 z-[300] flex items-center gap-2">
-        <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-          Offline-Modus — läuft lokal weiter
-        </span>
-        <button
-          onClick={onTryReconnect}
-          className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
-        >
+
+      <BoardTopBar
+        {...chrome}
+        editor={editor}
+        readonly={false}
+        onExport={exportBoard}
+      />
+
+      {editor && <ZoomControls editor={editor} />}
+
+      <StatusBanner>
+        <span>Offline-Modus — läuft lokal weiter</span>
+        <button onClick={onTryReconnect} className="font-medium text-[rgb(244,243,239)] underline">
           Jetzt synchronisieren
         </button>
-      </div>
+      </StatusBanner>
     </div>
   );
 }

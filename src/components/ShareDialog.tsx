@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { createShareLink, listShareLinks, revokeShareLink } from "@/lib/share";
 import { ShareRole } from "@/generated/prisma/enums";
+import { IconBtn } from "@/components/vos/IconBtn";
+import { ShareIcon } from "@/components/icons/VosIcons";
 
 type Link = {
   id: string;
@@ -56,15 +58,12 @@ export function ShareDialog({ nodeId }: { nodeId: string }) {
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-md border border-[rgb(58,59,65)] px-2.5 py-1 text-xs font-medium text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
-      >
-        Teilen
-      </button>
+      <IconBtn label="Teilen" active={open} onClick={() => setOpen((v) => !v)}>
+        <ShareIcon />
+      </IconBtn>
 
       {open && (
-        <div className="absolute right-0 top-8 z-[400] w-80 rounded-md border border-[rgb(58,59,65)] bg-[#202127] p-3 shadow-lg">
+        <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[400] w-80 rounded-xl p-3">
           <div className="flex items-center gap-2">
             <select
               value={role}

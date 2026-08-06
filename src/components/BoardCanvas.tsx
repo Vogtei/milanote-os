@@ -16,27 +16,69 @@ import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/offline-cache";
 import { MilanoteToolbar, MilanoteRailContext, DRAG_MIME } from "@/components/MilanoteToolbar";
 import { MilanoteRichTextToolbar } from "@/components/MilanoteRichTextToolbar";
 import { CommentsPanel } from "@/components/CommentsPanel";
+import { BoardTopBar } from "@/components/BoardTopBar";
+import { ZoomControls } from "@/components/vos/ZoomControls";
 
 // Exported so OfflineBoardCanvas (a separate <Tldraw> instance for the
 // stuck-loading/offline fallback) renders with the exact same shapes, rail,
 // and dark theme instead of tldraw's untouched defaults.
 export const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil, FileShapeUtil];
 export const textOptions = { tipTapConfig: { extensions: getTipTapDefaultExtensions({ codeBlock: {} }) } };
-export const milanoteComponents = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar, StylePanel: null };
+// Everything tldraw would otherwise stack in the corners is switched off:
+// the floating topbar owns undo/redo/menu/export, the rail owns the tools and
+// the zoom pill owns navigation, so the stock panels would only collide with
+// them (MenuPanel used to overlap the breadcrumbs outright).
+export const milanoteComponents = {
+  Toolbar: MilanoteToolbar,
+  RichTextToolbar: MilanoteRichTextToolbar,
+  StylePanel: null,
+  MenuPanel: null,
+  NavigationPanel: null,
+  QuickActions: null,
+  ActionsMenu: null,
+  HelpMenu: null,
+  DebugPanel: null,
+  PageMenu: null,
+  MainMenu: null,
+};
+
+// Connection/offline notices. Sits under the floating topbar rather than in
+// the corners, which the rail and zoom pill now occupy.
+export function StatusBanner({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="vos-panel vos-panel-shadow absolute left-1/2 top-[70px] z-[295] flex -translate-x-1/2 items-center gap-2 rounded-xl px-3 py-2 text-xs text-[rgb(156,153,143)]">
+      {children}
+    </div>
+  );
+}
+
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 const AUTOSAVE_MS = 3000;
 const STUCK_LOADING_MS = 10000;
+
+// Board chrome (breadcrumbs, role badge, share button) is rendered by the
+// canvas rather than the page so the topbar floats over a full-bleed canvas
+// and can reach the tldraw editor for undo/redo/search/export.
+export type BoardChrome = {
+  title: string;
+  parentHref: string;
+  parentLabel: string;
+  roleLabel: string | null;
+  share?: React.ReactNode;
+};
 
 export function BoardCanvas({
   id,
   readonly = false,
   canComment = false,
   userName,
+  chrome,
 }: {
   id: string;
   readonly?: boolean;
   canComment?: boolean;
   userName?: string;
+  chrome: BoardChrome;
 }) {
   const [mode, setMode] = useState<"sync" | "offline">("sync");
   const [remountKey, setRemountKey] = useState(0);
@@ -57,7 +99,7 @@ export function BoardCanvas({
   }
 
   if (mode === "offline" && !readonly) {
-    return <OfflineBoardCanvas id={id} onTryReconnect={tryReconnect} />;
+    return <OfflineBoardCanvas id={id} chrome={chrome} onTryReconnect={tryReconnect} />;
   }
 
   return (
@@ -67,6 +109,7 @@ export function BoardCanvas({
       readonly={readonly}
       canComment={canComment}
       userName={userName}
+      chrome={chrome}
       onGoOffline={readonly ? undefined : goOffline}
       checkForLocalEdits={hasBeenOffline}
     />
@@ -78,6 +121,7 @@ function SyncedBoardCanvas({
   readonly,
   canComment,
   userName,
+  chrome,
   onGoOffline,
   checkForLocalEdits,
 }: {
@@ -85,6 +129,7 @@ function SyncedBoardCanvas({
   readonly: boolean;
   canComment: boolean;
   userName?: string;
+  chrome: BoardChrome;
   onGoOffline?: () => void;
   checkForLocalEdits: boolean;
 }) {
@@ -115,6 +160,8 @@ function SyncedBoardCanvas({
     // colorScheme covers canvas background/grid/default-shape chrome for
     // free, no need to hand-roll canvas styling that would fight it.
     editor.user.updateUserPreferences({ colorScheme: "dark" });
+    // Dot grid on by default, like the reference canvas.
+    editor.updateInstanceState({ isGridMode: true });
 
     // Pasting or dropping a URL onto the canvas normally creates a bookmark
     // via tldraw's own (external) unfurl service. Override it with our
@@ -264,13 +311,16 @@ function SyncedBoardCanvas({
           editor.createShape({ type: "todo", x: point.x - 110, y: point.y - 90 });
           break;
         }
-        case "frame": {
+        case "text": {
           const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-          editor.createShape({ type: "frame", x: point.x - 150, y: point.y - 100, props: { w: 300, h: 200 } });
+          const id = createShapeId();
+          editor.createShape({ id, type: "text", x: point.x, y: point.y });
+          editor.setEditingShape(id);
           break;
         }
         case "arrow":
         case "draw":
+        case "geo":
           editor.setCurrentTool(tool);
           break;
         case "link":
@@ -280,10 +330,10 @@ function SyncedBoardCanvas({
           clickByTitle("Board");
           break;
         case "asset":
-          clickByTitle("Add image");
+          clickByTitle("Bild");
           break;
         case "upload":
-          clickByTitle("Upload");
+          clickByTitle("Datei");
           break;
       }
     }
@@ -309,48 +359,36 @@ function SyncedBoardCanvas({
           textOptions={textOptions}
         />
 
+        <BoardTopBar
+          {...chrome}
+          editor={editor}
+          readonly={readonly}
+          onExport={exportBoard}
+          onToggleComments={toggleComments}
+          onGoOffline={onGoOffline}
+        />
+
+        {editor && <ZoomControls editor={editor} />}
+
         <CommentsPanel boardId={id} canPost={canComment} open={commentsOpen} onOpenChange={setCommentsOpen} hideTrigger />
 
         {pendingLocalEdits && (
-          <div className="absolute left-3 top-3 z-[300] flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs dark:border-amber-800 dark:bg-amber-950">
-            <span className="text-amber-800 dark:text-amber-200">
+          <StatusBanner>
+            <span>
               Lokale Offline-Änderungen von{" "}
               {new Date(pendingLocalEdits.savedAt).toLocaleTimeString("de-DE")} gefunden.
             </span>
-            <button onClick={applyLocalEdits} className="font-medium text-amber-900 underline dark:text-amber-100">
+            <button onClick={applyLocalEdits} className="font-medium text-[rgb(244,243,239)] underline">
               Übernehmen
             </button>
-            <button onClick={dismissLocalEdits} className="text-zinc-500 underline">
+            <button onClick={dismissLocalEdits} className="underline">
               Verwerfen
             </button>
-          </div>
+          </StatusBanner>
         )}
 
         {isDisconnected && !pendingLocalEdits && (
-          <div className="absolute left-3 top-3 z-[300]">
-            <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-              Verbindung getrennt — läuft lokal weiter
-            </span>
-          </div>
-        )}
-
-        {!readonly && (
-          <div className="absolute right-3 top-3 z-[300] flex items-start gap-2">
-            {onGoOffline && (
-              <button
-                onClick={onGoOffline}
-                className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
-              >
-                Offline arbeiten
-              </button>
-            )}
-            <button
-              onClick={exportBoard}
-              className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
-            >
-              Exportieren
-            </button>
-          </div>
+          <StatusBanner>Verbindung getrennt — läuft lokal weiter</StatusBanner>
         )}
       </div>
     </MilanoteRailContext.Provider>

@@ -1,22 +1,22 @@
 "use client";
 
 import { createContext, useContext, useRef, useState } from "react";
-import Link from "next/link";
 import { useEditor, useValue } from "tldraw";
 import {
   NoteIcon,
   LinkIcon,
   TodoIcon,
-  LineIcon,
   BoardIcon,
-  ColumnIcon,
-  CommentIcon,
-  MoreIcon,
   ImageIcon,
   UploadIcon,
   DrawIcon,
-  TrashIcon,
 } from "@/components/icons/MilanoteIcons";
+import {
+  SelectIcon,
+  TextIcon,
+  ShapesIcon,
+  ArrowIcon,
+} from "@/components/icons/VosIcons";
 import { uploadRawFile } from "@/lib/asset-store";
 
 // Drag-and-drop mirrors real Milanote: dragging a rail icon onto the canvas
@@ -33,14 +33,6 @@ export const MilanoteRailContext = createContext<{
   toggleComments: () => void;
 } | null>(null);
 
-const MORE_TOOLS = [
-  { id: "select", label: "Auswählen" },
-  { id: "hand", label: "Hand" },
-  { id: "eraser", label: "Radierer" },
-  { id: "text", label: "Text" },
-  { id: "geo", label: "Form" },
-] as const;
-
 export function MilanoteToolbar() {
   const editor = useEditor();
   const rail = useContext(MilanoteRailContext);
@@ -52,7 +44,6 @@ export function MilanoteToolbar() {
   const [boardOpen, setBoardOpen] = useState(false);
   const [boardTitle, setBoardTitle] = useState("");
   const [boardPending, setBoardPending] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -119,215 +110,157 @@ export function MilanoteToolbar() {
   }
 
   // Viewers/commenters get no creation tools, matching the rest of the app's
-  // readonly-board behavior (top-right buttons are hidden the same way).
+  // readonly-board behavior (topbar actions are hidden the same way).
   if (isReadonly) return null;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 76,
-        zIndex: 300,
-        pointerEvents: "all",
-        background: "rgba(34,35,40,0.84)",
-        borderRight: "1px solid rgb(58,59,65)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        paddingTop: 12,
-        paddingBottom: 12,
-        gap: 2,
-        overflowY: "auto",
-      }}
+    // maxHeight keeps the rail clear of the floating topbar above and the zoom
+    // pill below on short viewports, where it would otherwise run into both.
+    <aside
+      className="vos-panel absolute left-2.5 top-1/2 z-[290] flex w-16 -translate-y-1/2 flex-col items-center gap-0.5 overflow-y-auto rounded-[15px] py-2.5"
+      style={{ maxHeight: "calc(100% - 130px)" }}
     >
       <RailButton
-        icon={<NoteIcon />}
-        label="Note"
+        icon={<SelectIcon size={22} />}
+        label="Wählen"
+        active={activeToolId === "select"}
+        onClick={() => editor.setCurrentTool("select")}
+      />
+      <RailButton
+        icon={<NoteIcon size={22} />}
+        label="Notiz"
         active={activeToolId === "note"}
         dragToolId="note"
         onClick={() => editor.setCurrentTool("note")}
       />
-
-      <div style={{ position: "relative" }}>
-        <RailButton icon={<LinkIcon />} label="Link" active={linkOpen} dragToolId="link" onClick={() => setLinkOpen((v) => !v)} />
-        {linkOpen && (
-          <form
-            onSubmit={submitLink}
-            style={{
-              position: "absolute",
-              left: 68,
-              top: 0,
-              zIndex: 400,
-              display: "flex",
-              gap: 4,
-              background: "#202127",
-              border: "1px solid rgb(58,59,65)",
-              borderRadius: 6,
-              padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-            }}
-          >
-            <input
-              autoFocus
-              value={linkValue}
-              onChange={(e) => setLinkValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setLinkOpen(false)}
-              placeholder="https://…"
-              style={{
-                width: 200,
-                fontSize: 12,
-                padding: "5px 7px",
-                border: "1px solid rgb(58,59,65)",
-                borderRadius: 4,
-                outline: "none",
-                background: "#17181c",
-                color: "rgb(231,229,224)",
-              }}
-            />
-            <button
-              type="submit"
-              style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", borderRadius: 4, background: "#18181b", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              Einfügen
-            </button>
-          </form>
-        )}
-      </div>
-
-      <RailButton icon={<TodoIcon />} label="To-do" dragToolId="todo" onClick={insertTodo} />
       <RailButton
-        icon={<LineIcon />}
-        label="Line"
-        active={activeToolId === "arrow"}
-        dragToolId="arrow"
-        onClick={() => editor.setCurrentTool("arrow")}
+        icon={<TextIcon size={22} />}
+        label="Text"
+        active={activeToolId === "text"}
+        dragToolId="text"
+        onClick={() => editor.setCurrentTool("text")}
       />
 
-      <div style={{ position: "relative" }}>
-        <RailButton icon={<BoardIcon />} label="Board" active={boardOpen} dragToolId="board" onClick={() => rail && setBoardOpen((v) => !v)} />
-        {boardOpen && (
-          <form
-            onSubmit={submitBoard}
-            style={{
-              position: "absolute",
-              left: 68,
-              top: 0,
-              zIndex: 400,
-              display: "flex",
-              gap: 4,
-              background: "#202127",
-              border: "1px solid rgb(58,59,65)",
-              borderRadius: 6,
-              padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-            }}
-          >
-            <input
-              autoFocus
-              value={boardTitle}
-              onChange={(e) => setBoardTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setBoardOpen(false)}
-              placeholder="Board-Name"
-              disabled={boardPending}
-              style={{
-                width: 160,
-                fontSize: 12,
-                padding: "5px 7px",
-                border: "1px solid rgb(58,59,65)",
-                borderRadius: 4,
-                outline: "none",
-                background: "#17181c",
-                color: "rgb(231,229,224)",
-              }}
-            />
-            <button
-              type="submit"
-              disabled={boardPending || !boardTitle.trim()}
-              style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", borderRadius: 4, background: "#18181b", color: "#fff", border: "none", cursor: "pointer", opacity: boardPending ? 0.5 : 1 }}
-            >
-              Erstellen
-            </button>
-          </form>
-        )}
-      </div>
-
-      <RailButton
-        icon={<ColumnIcon />}
-        label="Column"
-        active={activeToolId === "frame"}
-        dragToolId="frame"
-        onClick={() => editor.setCurrentTool("frame")}
-      />
-      <RailButton icon={<CommentIcon />} label="Comment" onClick={() => rail?.toggleComments()} />
-
-      <div style={{ position: "relative" }}>
-        <RailButton icon={<MoreIcon />} label="" active={moreOpen} onClick={() => setMoreOpen((v) => !v)} />
-        {moreOpen && (
-          <div
-            style={{
-              position: "absolute",
-              left: 68,
-              top: 0,
-              zIndex: 400,
-              display: "flex",
-              flexDirection: "column",
-              background: "#202127",
-              border: "1px solid rgb(58,59,65)",
-              borderRadius: 6,
-              padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-              minWidth: 130,
-            }}
-          >
-            {MORE_TOOLS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => {
-                  editor.setCurrentTool(t.id);
-                  setMoreOpen(false);
-                }}
-                style={{
-                  textAlign: "left",
-                  fontSize: 12,
-                  padding: "6px 8px",
-                  border: "none",
-                  background: activeToolId === t.id ? "rgba(255,255,255,0.118)" : "transparent",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  color: activeToolId === t.id ? "rgb(244,243,239)" : "rgb(156,153,143)",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div style={{ width: 44, borderTop: "1px solid rgb(58,59,65)", margin: "4px 0" }} />
+      <Popover
+        open={boardOpen}
+        trigger={
+          <RailButton
+            icon={<BoardIcon size={22} />}
+            label="Board"
+            active={boardOpen}
+            dragToolId="board"
+            onClick={() => rail && setBoardOpen((v) => !v)}
+          />
+        }
+      >
+        <form onSubmit={submitBoard} className="flex gap-1">
+          <input
+            autoFocus
+            value={boardTitle}
+            onChange={(e) => setBoardTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setBoardOpen(false)}
+            placeholder="Board-Name"
+            disabled={boardPending}
+            className={popoverInputClass}
+          />
+          <button type="submit" disabled={boardPending || !boardTitle.trim()} className={popoverSubmitClass}>
+            Erstellen
+          </button>
+        </form>
+      </Popover>
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImagePick} />
-      <RailButton icon={<ImageIcon />} label="Add image" dragToolId="asset" onClick={() => imageInputRef.current?.click()} />
+      <RailButton
+        icon={<ImageIcon size={22} />}
+        label="Bild"
+        dragToolId="asset"
+        onClick={() => imageInputRef.current?.click()}
+      />
 
       <input ref={uploadInputRef} type="file" hidden onChange={handleUploadPick} />
-      <RailButton icon={<UploadIcon />} label="Upload" dragToolId="upload" onClick={() => uploadInputRef.current?.click()} />
-
       <RailButton
-        icon={<DrawIcon />}
-        label="Draw"
+        icon={<UploadIcon size={22} />}
+        label="Datei"
+        dragToolId="upload"
+        onClick={() => uploadInputRef.current?.click()}
+      />
+
+      <Popover
+        open={linkOpen}
+        trigger={
+          <RailButton
+            icon={<LinkIcon size={22} />}
+            label="Link"
+            active={linkOpen}
+            dragToolId="link"
+            onClick={() => setLinkOpen((v) => !v)}
+          />
+        }
+      >
+        <form onSubmit={submitLink} className="flex gap-1">
+          <input
+            autoFocus
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setLinkOpen(false)}
+            placeholder="https://…"
+            className={`${popoverInputClass} w-52`}
+          />
+          <button type="submit" className={popoverSubmitClass}>
+            Einfügen
+          </button>
+        </form>
+      </Popover>
+
+      <RailButton icon={<TodoIcon size={22} />} label="To-do" dragToolId="todo" onClick={insertTodo} />
+      <RailButton
+        icon={<ShapesIcon size={22} />}
+        label="Formen"
+        active={activeToolId === "geo"}
+        dragToolId="geo"
+        onClick={() => editor.setCurrentTool("geo")}
+      />
+      <RailButton
+        icon={<DrawIcon size={22} />}
+        label="Zeichnen"
         active={activeToolId === "draw"}
         dragToolId="draw"
         onClick={() => editor.setCurrentTool("draw")}
       />
+      <RailButton
+        icon={<ArrowIcon size={22} />}
+        label="Pfeil"
+        active={activeToolId === "arrow"}
+        dragToolId="arrow"
+        onClick={() => editor.setCurrentTool("arrow")}
+      />
+    </aside>
+  );
+}
 
-      <div style={{ flex: 1 }} />
+const popoverInputClass =
+  "w-40 rounded border border-[rgb(58,59,65)] bg-[#17181c] px-2 py-1.5 text-xs text-[rgb(231,229,224)] outline-none placeholder:text-[rgb(120,118,112)] focus:border-[rgb(120,118,112)]";
 
-      <Link href="/trash" style={{ textDecoration: "none" }}>
-        <RailButton icon={<TrashIcon />} label="Trash" />
-      </Link>
+const popoverSubmitClass =
+  "shrink-0 rounded bg-[rgb(244,243,239)] px-2.5 text-xs font-semibold text-[#17181c] disabled:opacity-50";
+
+function Popover({
+  open,
+  trigger,
+  children,
+}: {
+  open: boolean;
+  trigger: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      {trigger}
+      {open && (
+        <div className="vos-panel vos-panel-shadow absolute left-[60px] top-0 z-[400] rounded-lg p-1.5">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -358,34 +291,16 @@ function RailButton({
             }
           : undefined
       }
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 3,
-        width: 60,
-        border: "none",
-        borderRadius: 6,
-        background: active ? "rgba(255,255,255,0.118)" : "transparent",
-        color: active ? "rgb(244,243,239)" : "rgb(156,153,143)",
-        cursor: dragToolId ? "grab" : "pointer",
-        padding: "8px 0 6px",
-      }}
+      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium ${
+        dragToolId ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      } ${
+        active
+          ? "bg-[rgba(255,255,255,0.118)] text-[rgb(244,243,239)]"
+          : "bg-transparent text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
+      }`}
     >
-      <span
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 20,
-          height: 20,
-          color: "inherit",
-        }}
-      >
-        {icon}
-      </span>
-      {label && <span style={{ fontSize: 10, color: "inherit", lineHeight: 1 }}>{label}</span>}
+      <span className="flex h-[22px] w-[22px] items-center justify-center text-inherit">{icon}</span>
+      <span className="leading-none text-inherit">{label}</span>
     </button>
   );
 }

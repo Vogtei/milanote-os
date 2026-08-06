@@ -13,6 +13,7 @@ import type { TLRecord } from "@tldraw/tlschema";
 import { getIndexAbove } from "@tldraw/utils";
 import { boardLinkProps } from "../src/lib/board-link-schema";
 import { todoProps } from "../src/lib/todo-schema";
+import { fileProps } from "../src/lib/file-schema";
 import { prisma } from "../src/lib/prisma";
 import { resolveBoardAccess, canWrite } from "../src/lib/access-core";
 
@@ -24,6 +25,7 @@ const schema = createTLSchema({
     ...defaultShapeSchemas,
     "board-link": { props: boardLinkProps },
     todo: { props: todoProps },
+    file: { props: fileProps },
   },
   bindings: defaultBindingSchemas,
   assets: defaultAssetSchemas,

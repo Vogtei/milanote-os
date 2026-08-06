@@ -13,11 +13,19 @@ type Comment = {
 export function CommentsPanel({
   boardId,
   canPost,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   boardId: string;
   canPost: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [text, setText] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -42,16 +50,24 @@ export function CommentsPanel({
   }
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-      >
-        Kommentare
-      </button>
+    <div className={hideTrigger ? "" : "relative"}>
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen(!open)}
+          className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          Kommentare
+        </button>
+      )}
 
       {open && (
-        <div className="absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+        <div
+          className={
+            hideTrigger
+              ? "fixed right-3 top-16 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+              : "absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+          }
+        >
           <ul className="flex-1 overflow-y-auto p-3">
             {comments === null && <li className="text-xs text-zinc-400">Lädt…</li>}
             {comments?.length === 0 && (

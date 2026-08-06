@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tldraw, createShapeId, defaultShapeUtils, AssetRecordType, exportAs } from "tldraw";
+import { Tldraw, defaultShapeUtils, AssetRecordType, exportAs, getTipTapDefaultExtensions } from "tldraw";
 import type { Editor } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import "tldraw/tldraw.css";
@@ -9,22 +9,30 @@ import { createNode } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
 import { BoardLinkShapeUtil } from "@/components/BoardLinkShape";
 import { TodoShapeUtil } from "@/components/TodoShape";
+import { FileShapeUtil } from "@/components/FileShape";
 import { minioAssetStore } from "@/lib/asset-store";
 import { OfflineBoardCanvas } from "@/components/OfflineBoardCanvas";
 import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/offline-cache";
+import { MilanoteToolbar, MilanoteRailContext } from "@/components/MilanoteToolbar";
+import { MilanoteRichTextToolbar } from "@/components/MilanoteRichTextToolbar";
+import { CommentsPanel } from "@/components/CommentsPanel";
 
-const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil];
+const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil, FileShapeUtil];
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 const AUTOSAVE_MS = 3000;
 const STUCK_LOADING_MS = 10000;
+const textOptions = { tipTapConfig: { extensions: getTipTapDefaultExtensions({ codeBlock: {} }) } };
+const components = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar };
 
 export function BoardCanvas({
   id,
   readonly = false,
+  canComment = false,
   userName,
 }: {
   id: string;
   readonly?: boolean;
+  canComment?: boolean;
   userName?: string;
 }) {
   const [mode, setMode] = useState<"sync" | "offline">("sync");
@@ -48,6 +56,7 @@ export function BoardCanvas({
       key={remountKey}
       id={id}
       readonly={readonly}
+      canComment={canComment}
       userName={userName}
       onGoOffline={readonly ? undefined : goOffline}
     />
@@ -57,11 +66,13 @@ export function BoardCanvas({
 function SyncedBoardCanvas({
   id,
   readonly,
+  canComment,
   userName,
   onGoOffline,
 }: {
   id: string;
   readonly: boolean;
+  canComment: boolean;
   userName?: string;
   onGoOffline?: () => void;
 }) {
@@ -81,10 +92,8 @@ function SyncedBoardCanvas({
   }, [store.status, onGoOffline]);
 
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("");
-  const [pending, setPending] = useState(false);
   const [pendingLocalEdits, setPendingLocalEdits] = useState<{ savedAt: number } | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   function handleMount(editor: Editor) {
     setEditor(editor);
@@ -161,123 +170,83 @@ function SyncedBoardCanvas({
     await exportAs(editor, ids, { format: "png", name: "board" });
   }
 
-  function insertTodo() {
+  // Bridges MilanoteToolbar (rendered prop-less by tldraw itself via the
+  // `components` registry) back to state/data that lives here: the current
+  // board id (for creating nested boards) and the comments panel's open
+  // state (which renders outside the <Tldraw> tree).
+  async function createBoard(boardTitle: string) {
     if (!editor) return;
+    const node = await createNode(NodeType.BOARD, boardTitle, id);
     const center = editor.getViewportPageBounds().center;
     editor.createShape({
-      id: createShapeId(),
-      type: "todo",
+      type: "board-link",
       x: center.x - 110,
-      y: center.y - 90,
-      props: { w: 220, h: 180, title: "Todo", items: [{ id: crypto.randomUUID(), text: "", done: false }] },
+      y: center.y - 60,
+      props: { nodeId: node.id, title: node.title, w: 220, h: 120 },
     });
   }
 
-  async function submitNewBoardLink(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editor || !title.trim()) return;
-    setPending(true);
-    try {
-      const node = await createNode(NodeType.BOARD, title, id);
-      const center = editor.getViewportPageBounds().center;
-
-      editor.createShape({
-        id: createShapeId(),
-        type: "board-link",
-        x: center.x - 110,
-        y: center.y - 60,
-        props: { nodeId: node.id, title: node.title, w: 220, h: 120 },
-      });
-      setTitle("");
-      setCreating(false);
-    } finally {
-      setPending(false);
-    }
+  function toggleComments() {
+    setCommentsOpen((v) => !v);
   }
 
   const isDisconnected = store.status === "synced-remote" && store.connectionStatus === "offline";
 
   return (
-    <div className="relative h-full w-full">
-      <Tldraw store={store} shapeUtils={shapeUtils} onMount={handleMount} />
+    <MilanoteRailContext.Provider value={{ createBoard, toggleComments }}>
+      <div className="relative h-full w-full">
+        <Tldraw
+          store={store}
+          shapeUtils={shapeUtils}
+          onMount={handleMount}
+          components={components}
+          textOptions={textOptions}
+        />
 
-      {pendingLocalEdits && (
-        <div className="absolute left-3 top-3 z-[300] flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs dark:border-amber-800 dark:bg-amber-950">
-          <span className="text-amber-800 dark:text-amber-200">
-            Lokale Offline-Änderungen von{" "}
-            {new Date(pendingLocalEdits.savedAt).toLocaleTimeString("de-DE")} gefunden.
-          </span>
-          <button onClick={applyLocalEdits} className="font-medium text-amber-900 underline dark:text-amber-100">
-            Übernehmen
-          </button>
-          <button onClick={dismissLocalEdits} className="text-zinc-500 underline">
-            Verwerfen
-          </button>
-        </div>
-      )}
+        <CommentsPanel boardId={id} canPost={canComment} open={commentsOpen} onOpenChange={setCommentsOpen} hideTrigger />
 
-      {isDisconnected && !pendingLocalEdits && (
-        <div className="absolute left-3 top-3 z-[300]">
-          <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-            Verbindung getrennt — läuft lokal weiter
-          </span>
-        </div>
-      )}
-
-      {!readonly && (
-        <div className="absolute right-3 top-3 z-[300] flex items-start gap-2">
-          {onGoOffline && (
-            <button
-              onClick={onGoOffline}
-              className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Offline arbeiten
+        {pendingLocalEdits && (
+          <div className="absolute left-3 top-3 z-[300] flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs dark:border-amber-800 dark:bg-amber-950">
+            <span className="text-amber-800 dark:text-amber-200">
+              Lokale Offline-Änderungen von{" "}
+              {new Date(pendingLocalEdits.savedAt).toLocaleTimeString("de-DE")} gefunden.
+            </span>
+            <button onClick={applyLocalEdits} className="font-medium text-amber-900 underline dark:text-amber-100">
+              Übernehmen
             </button>
-          )}
-          <button
-            onClick={exportBoard}
-            className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          >
-            Exportieren
-          </button>
-          <button
-            onClick={insertTodo}
-            className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          >
-            + Todo
-          </button>
-          {creating ? (
-            <form
-              onSubmit={submitNewBoardLink}
-              className="flex items-center gap-1 rounded-md border border-zinc-300 bg-white p-1 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <input
-                autoFocus
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && setCreating(false)}
-                placeholder="Board-Name"
-                disabled={pending}
-                className="w-36 rounded px-1.5 py-1 text-xs outline-none dark:bg-zinc-900"
-              />
+            <button onClick={dismissLocalEdits} className="text-zinc-500 underline">
+              Verwerfen
+            </button>
+          </div>
+        )}
+
+        {isDisconnected && !pendingLocalEdits && (
+          <div className="absolute left-3 top-3 z-[300]">
+            <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+              Verbindung getrennt — läuft lokal weiter
+            </span>
+          </div>
+        )}
+
+        {!readonly && (
+          <div className="absolute right-3 top-3 z-[300] flex items-start gap-2">
+            {onGoOffline && (
               <button
-                type="submit"
-                disabled={pending || !title.trim()}
-                className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+                onClick={onGoOffline}
+                className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                Erstellen
+                Offline arbeiten
               </button>
-            </form>
-          ) : (
+            )}
             <button
-              onClick={() => setCreating(true)}
+              onClick={exportBoard}
               className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              + Board einfügen
+              Exportieren
             </button>
-          )}
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </MilanoteRailContext.Provider>
   );
 }

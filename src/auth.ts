@@ -11,4 +11,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       from: process.env.EMAIL_FROM,
     }),
   ],
+  pages: {
+    signIn: "/signin",
+    verifyRequest: "/signin/verify-request",
+  },
 });

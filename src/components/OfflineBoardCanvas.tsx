@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Tldraw, defaultShapeUtils } from "tldraw";
+import { Tldraw } from "tldraw";
 import type { Editor } from "tldraw";
 import "tldraw/tldraw.css";
-import { BoardLinkShapeUtil } from "@/components/BoardLinkShape";
-import { TodoShapeUtil } from "@/components/TodoShape";
+import { shapeUtils, textOptions, milanoteComponents } from "@/components/BoardCanvas";
 import { minioAssetStore } from "@/lib/asset-store";
 import { saveSnapshot, loadSnapshot } from "@/lib/offline-cache";
 
-const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil];
 const AUTOSAVE_MS = 3000;
 
 // Fully local editor with no server connection — used when useSync can't
@@ -52,7 +50,15 @@ export function OfflineBoardCanvas({
 
   return (
     <div className="relative h-full w-full">
-      {ready && <Tldraw shapeUtils={shapeUtils} assets={minioAssetStore} onMount={handleMount} />}
+      {ready && (
+        <Tldraw
+          shapeUtils={shapeUtils}
+          assets={minioAssetStore}
+          onMount={handleMount}
+          components={milanoteComponents}
+          textOptions={textOptions}
+        />
+      )}
       <div className="absolute left-3 top-3 z-[300] flex items-center gap-2">
         <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
           Offline-Modus — läuft lokal weiter

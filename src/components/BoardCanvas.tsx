@@ -17,12 +17,15 @@ import { MilanoteToolbar, MilanoteRailContext, DRAG_MIME } from "@/components/Mi
 import { MilanoteRichTextToolbar } from "@/components/MilanoteRichTextToolbar";
 import { CommentsPanel } from "@/components/CommentsPanel";
 
-const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil, FileShapeUtil];
+// Exported so OfflineBoardCanvas (a separate <Tldraw> instance for the
+// stuck-loading/offline fallback) renders with the exact same shapes, rail,
+// and dark theme instead of tldraw's untouched defaults.
+export const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil, FileShapeUtil];
+export const textOptions = { tipTapConfig: { extensions: getTipTapDefaultExtensions({ codeBlock: {} }) } };
+export const milanoteComponents = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar, StylePanel: null };
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 const AUTOSAVE_MS = 3000;
 const STUCK_LOADING_MS = 10000;
-const textOptions = { tipTapConfig: { extensions: getTipTapDefaultExtensions({ codeBlock: {} }) } };
-const components = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar, StylePanel: null };
 
 export function BoardCanvas({
   id,
@@ -302,7 +305,7 @@ function SyncedBoardCanvas({
           store={store}
           shapeUtils={shapeUtils}
           onMount={handleMount}
-          components={components}
+          components={milanoteComponents}
           textOptions={textOptions}
         />
 

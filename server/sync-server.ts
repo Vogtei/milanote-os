@@ -10,6 +10,7 @@ import {
 } from "@tldraw/tlschema";
 import type { TLRecord } from "@tldraw/tlschema";
 import { boardLinkProps } from "../src/lib/board-link-schema";
+import { todoProps } from "../src/lib/todo-schema";
 import { prisma } from "../src/lib/prisma";
 import { resolveBoardAccess, canWrite } from "../src/lib/access-core";
 
@@ -17,7 +18,11 @@ const PORT = Number(process.env.SYNC_SERVER_PORT ?? 5858);
 const SAVE_DEBOUNCE_MS = 2000;
 
 const schema = createTLSchema({
-  shapes: { ...defaultShapeSchemas, "board-link": { props: boardLinkProps } },
+  shapes: {
+    ...defaultShapeSchemas,
+    "board-link": { props: boardLinkProps },
+    todo: { props: todoProps },
+  },
   bindings: defaultBindingSchemas,
   assets: defaultAssetSchemas,
 });

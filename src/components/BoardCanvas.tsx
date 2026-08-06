@@ -8,9 +8,10 @@ import "tldraw/tldraw.css";
 import { createNode } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
 import { BoardLinkShapeUtil } from "@/components/BoardLinkShape";
+import { TodoShapeUtil } from "@/components/TodoShape";
 import { minioAssetStore } from "@/lib/asset-store";
 
-const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil];
+const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil];
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 
 export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: boolean }) {
@@ -62,6 +63,18 @@ export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: b
     });
   }
 
+  function insertTodo() {
+    if (!editor) return;
+    const center = editor.getViewportPageBounds().center;
+    editor.createShape({
+      id: createShapeId(),
+      type: "todo",
+      x: center.x - 110,
+      y: center.y - 90,
+      props: { w: 220, h: 180, title: "Todo", items: [{ id: crypto.randomUUID(), text: "", done: false }] },
+    });
+  }
+
   async function submitNewBoardLink(e: React.FormEvent) {
     e.preventDefault();
     if (!editor || !title.trim()) return;
@@ -89,7 +102,13 @@ export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: b
       <Tldraw store={store} shapeUtils={shapeUtils} onMount={handleMount} />
 
       {!readonly && (
-      <div className="absolute right-3 top-3 z-[300]">
+      <div className="absolute right-3 top-3 z-[300] flex items-start gap-2">
+        <button
+          onClick={insertTodo}
+          className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          + Todo
+        </button>
         {creating ? (
           <form
             onSubmit={submitNewBoardLink}

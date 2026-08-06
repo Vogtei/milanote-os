@@ -114,10 +114,13 @@ export function MilanoteToolbar() {
   if (isReadonly) return null;
 
   return (
-    // maxHeight keeps the rail clear of the floating topbar above and the zoom
-    // pill below on short viewports, where it would otherwise run into both.
+    // pointer-events-auto is load-bearing: tldraw renders the Toolbar slot
+    // inside `.tlui-layout__bottom__main`, which sets pointer-events:none so
+    // clicks fall straight through to the canvas — without it the rail is
+    // visible but completely dead. maxHeight keeps it clear of the floating
+    // topbar above and the zoom pill below on short viewports.
     <aside
-      className="vos-panel absolute left-2.5 top-1/2 z-[290] flex w-16 -translate-y-1/2 flex-col items-center gap-0.5 overflow-y-auto rounded-[15px] py-2.5"
+      className="vos-panel pointer-events-auto absolute left-2.5 top-1/2 z-[290] flex w-16 -translate-y-1/2 flex-col items-center gap-0.5 overflow-y-auto rounded-[15px] py-2.5"
       style={{ maxHeight: "calc(100% - 130px)" }}
     >
       <RailButton

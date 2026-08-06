@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tldraw, defaultShapeUtils, AssetRecordType, exportAs, getTipTapDefaultExtensions, createShapeId } from "tldraw";
 import type { Editor } from "tldraw";
 import { useSync } from "@tldraw/sync";
@@ -37,8 +37,14 @@ export function BoardCanvas({
 }) {
   const [mode, setMode] = useState<"sync" | "offline">("sync");
   const [remountKey, setRemountKey] = useState(0);
+  // Only true once we've actually gone through the offline detour — a plain
+  // cold load has no reconciliation to offer, even though the autosave
+  // safety-net (see handleMount below) means IndexedDB almost always has
+  // *some* cached snapshot lying around from a previous session.
+  const [hasBeenOffline, setHasBeenOffline] = useState(false);
 
   function goOffline() {
+    setHasBeenOffline(true);
     setMode("offline");
   }
 
@@ -59,6 +65,7 @@ export function BoardCanvas({
       canComment={canComment}
       userName={userName}
       onGoOffline={readonly ? undefined : goOffline}
+      checkForLocalEdits={hasBeenOffline}
     />
   );
 }
@@ -69,12 +76,14 @@ function SyncedBoardCanvas({
   canComment,
   userName,
   onGoOffline,
+  checkForLocalEdits,
 }: {
   id: string;
   readonly: boolean;
   canComment: boolean;
   userName?: string;
   onGoOffline?: () => void;
+  checkForLocalEdits: boolean;
 }) {
   const store = useSync({
     uri: `${SYNC_URL}?boardId=${id}`,
@@ -141,9 +150,14 @@ function SyncedBoardCanvas({
       }, AUTOSAVE_MS);
       editor.disposables.add(() => clearInterval(interval));
 
-      loadSnapshot(id).then((cached) => {
-        if (cached) setPendingLocalEdits({ savedAt: cached.savedAt });
-      });
+      // Only worth checking right after an actual offline detour — see the
+      // comment on `hasBeenOffline` in BoardCanvas for why a plain cold load
+      // skips this even though a cache almost always technically exists.
+      if (checkForLocalEdits) {
+        loadSnapshot(id).then((cached) => {
+          if (cached) setPendingLocalEdits({ savedAt: cached.savedAt });
+        });
+      }
     }
   }
 
@@ -197,60 +211,89 @@ function SyncedBoardCanvas({
   // just opens the same popover a click would; tools that arm a continuous
   // gesture (Line, Draw) or open a file picker (Add image, Upload) likewise
   // fall back to their click behavior rather than guessing a synthetic drag.
-  function handleDragOver(e: React.DragEvent) {
-    if (e.dataTransfer.types.includes(DRAG_MIME)) e.preventDefault();
-  }
+  //
+  // tldraw's own canvas has its own native drop handling (for OS file
+  // drag-and-drop) that calls stopPropagation — a React onDrop/onDropCapture
+  // prop on an ancestor never saw our drops at all, because React's
+  // synthetic capture dispatch didn't intercept it before tldraw's handler
+  // ran (confirmed empirically: a debug log in the React capture handler
+  // never fired). A real native `addEventListener(..., {capture:true})`
+  // does — verified capture-before-bubble ordering directly against this
+  // exact DOM structure — so we bypass React's synthetic event system here
+  // and attach to the DOM ourselves.
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  function handleDrop(e: React.DragEvent) {
-    const tool = e.dataTransfer.getData(DRAG_MIME);
-    if (!tool || !editor) return;
-    e.preventDefault();
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || !editor) return;
 
-    const clickByTitle = (title: string) =>
-      document.querySelector<HTMLButtonElement>(`button[title="${title}"]`)?.click();
-
-    switch (tool) {
-      case "note": {
-        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-        const id = createShapeId();
-        editor.createShape({ id, type: "note", x: point.x - 100, y: point.y - 50 });
-        editor.setEditingShape(id);
-        break;
+    function onDragOver(e: DragEvent) {
+      if (e.dataTransfer?.types.includes(DRAG_MIME)) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-      case "todo": {
-        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-        editor.createShape({ type: "todo", x: point.x - 110, y: point.y - 90 });
-        break;
-      }
-      case "frame": {
-        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-        editor.createShape({ type: "frame", x: point.x - 150, y: point.y - 100, props: { w: 300, h: 200 } });
-        break;
-      }
-      case "arrow":
-      case "draw":
-        editor.setCurrentTool(tool);
-        break;
-      case "link":
-        clickByTitle("Link");
-        break;
-      case "board":
-        clickByTitle("Board");
-        break;
-      case "asset":
-        clickByTitle("Add image");
-        break;
-      case "upload":
-        clickByTitle("Upload");
-        break;
     }
-  }
+
+    function onDrop(e: DragEvent) {
+      const tool = e.dataTransfer?.getData(DRAG_MIME);
+      if (!tool || !editor) return;
+      e.preventDefault();
+      e.stopPropagation();
+      editor.markEventAsHandled(e);
+
+      const clickByTitle = (title: string) =>
+        document.querySelector<HTMLButtonElement>(`button[title="${title}"]`)?.click();
+
+      switch (tool) {
+        case "note": {
+          const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+          const id = createShapeId();
+          editor.createShape({ id, type: "note", x: point.x - 100, y: point.y - 50 });
+          editor.setEditingShape(id);
+          break;
+        }
+        case "todo": {
+          const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+          editor.createShape({ type: "todo", x: point.x - 110, y: point.y - 90 });
+          break;
+        }
+        case "frame": {
+          const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+          editor.createShape({ type: "frame", x: point.x - 150, y: point.y - 100, props: { w: 300, h: 200 } });
+          break;
+        }
+        case "arrow":
+        case "draw":
+          editor.setCurrentTool(tool);
+          break;
+        case "link":
+          clickByTitle("Link");
+          break;
+        case "board":
+          clickByTitle("Board");
+          break;
+        case "asset":
+          clickByTitle("Add image");
+          break;
+        case "upload":
+          clickByTitle("Upload");
+          break;
+      }
+    }
+
+    wrapper.addEventListener("dragover", onDragOver, true);
+    wrapper.addEventListener("drop", onDrop, true);
+    return () => {
+      wrapper.removeEventListener("dragover", onDragOver, true);
+      wrapper.removeEventListener("drop", onDrop, true);
+    };
+  }, [editor]);
 
   const isDisconnected = store.status === "synced-remote" && store.connectionStatus === "offline";
 
   return (
     <MilanoteRailContext.Provider value={{ createBoard, toggleComments }}>
-      <div className="relative h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div ref={wrapperRef} className="relative h-full w-full">
         <Tldraw
           store={store}
           shapeUtils={shapeUtils}

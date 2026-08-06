@@ -75,3 +75,37 @@ export async function deleteNode(id: string) {
   revalidatePath("/");
   if (node.parentId) revalidatePath(`/board/${node.parentId}`);
 }
+
+export async function listTrash() {
+  const ownerId = await requireUserId();
+  return prisma.node.findMany({
+    where: { ownerId, deletedAt: { not: null } },
+    orderBy: { deletedAt: "desc" },
+  });
+}
+
+export async function restoreNode(id: string) {
+  const ownerId = await requireUserId();
+  const node = await prisma.node.findFirst({
+    where: { id, ownerId, NOT: { deletedAt: null } },
+  });
+  if (!node) throw new Error("Not found");
+
+  // If the parent is gone or also deleted, restore to the top level instead
+  // of leaving the node reachable only by direct link.
+  let parentId = node.parentId;
+  if (parentId) {
+    const parent = await prisma.node.findFirst({
+      where: { id: parentId, ownerId, deletedAt: null },
+    });
+    if (!parent) parentId = null;
+  }
+
+  await prisma.node.update({
+    where: { id },
+    data: { deletedAt: null, parentId },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/trash");
+}

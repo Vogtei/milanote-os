@@ -1,16 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Tldraw, createShapeId } from "tldraw";
+import { Tldraw, createShapeId, defaultShapeUtils, inlineBase64AssetStore } from "tldraw";
 import type { Editor } from "tldraw";
+import { useSync } from "@tldraw/sync";
 import "tldraw/tldraw.css";
 import { createNode } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
 import { BoardLinkShapeUtil } from "@/components/BoardLinkShape";
 
-const shapeUtils = [BoardLinkShapeUtil];
+const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil];
+const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 
 export function BoardCanvas({ id }: { id: string }) {
+  const store = useSync({
+    uri: `${SYNC_URL}?boardId=${id}`,
+    shapeUtils,
+    // Placeholder until the MinIO upload slice lands — stores images inline
+    // as base64 instead of uploading to object storage.
+    assets: inlineBase64AssetStore,
+  });
+
   const [editor, setEditor] = useState<Editor | null>(null);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -40,7 +50,7 @@ export function BoardCanvas({ id }: { id: string }) {
 
   return (
     <div className="relative h-full w-full">
-      <Tldraw persistenceKey={id} shapeUtils={shapeUtils} onMount={setEditor} />
+      <Tldraw store={store} shapeUtils={shapeUtils} onMount={setEditor} />
 
       <div className="absolute right-3 top-3 z-[300]">
         {creating ? (

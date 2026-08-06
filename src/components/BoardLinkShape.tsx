@@ -1,8 +1,9 @@
 "use client";
 
-import { BaseBoxShapeUtil, HTMLContainer, T, stopEventPropagation } from "tldraw";
+import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation } from "tldraw";
 import type { TLShape } from "tldraw";
 import { useRouter } from "next/navigation";
+import { boardLinkProps } from "@/lib/board-link-schema";
 
 // tldraw registers custom shape types by augmenting this map (see
 // TLGlobalShapePropsMap in @tldraw/tlschema) rather than a plain union type.
@@ -21,12 +22,7 @@ export type BoardLinkShape = TLShape<"board-link">;
 
 export class BoardLinkShapeUtil extends BaseBoxShapeUtil<BoardLinkShape> {
   static override type = "board-link" as const;
-  static override props = {
-    w: T.number,
-    h: T.number,
-    nodeId: T.string,
-    title: T.string,
-  };
+  static override props = boardLinkProps;
 
   override getDefaultProps(): BoardLinkShape["props"] {
     return { w: 220, h: 120, nodeId: "", title: "Board" };

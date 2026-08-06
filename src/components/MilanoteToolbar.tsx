@@ -19,6 +19,11 @@ import {
 } from "@/components/icons/MilanoteIcons";
 import { uploadRawFile } from "@/lib/asset-store";
 
+// Drag-and-drop mirrors real Milanote: dragging a rail icon onto the canvas
+// creates the element at the drop point instead of requiring arm-then-click.
+// See BoardCanvas.tsx's onDrop for the receiving side.
+export const DRAG_MIME = "application/x-milanote-tool";
+
 // Actions that need data owned by BoardCanvas (current board id, comments
 // panel state) but must be triggered from MilanoteToolbar — which tldraw
 // renders itself with no props (components={{ Toolbar: MilanoteToolbar }}),
@@ -138,10 +143,16 @@ export function MilanoteToolbar() {
         overflowY: "auto",
       }}
     >
-      <RailButton icon={<NoteIcon />} label="Note" active={activeToolId === "note"} onClick={() => editor.setCurrentTool("note")} />
+      <RailButton
+        icon={<NoteIcon />}
+        label="Note"
+        active={activeToolId === "note"}
+        dragToolId="note"
+        onClick={() => editor.setCurrentTool("note")}
+      />
 
       <div style={{ position: "relative" }}>
-        <RailButton icon={<LinkIcon />} label="Link" active={linkOpen} onClick={() => setLinkOpen((v) => !v)} />
+        <RailButton icon={<LinkIcon />} label="Link" active={linkOpen} dragToolId="link" onClick={() => setLinkOpen((v) => !v)} />
         {linkOpen && (
           <form
             onSubmit={submitLink}
@@ -177,11 +188,17 @@ export function MilanoteToolbar() {
         )}
       </div>
 
-      <RailButton icon={<TodoIcon />} label="To-do" onClick={insertTodo} />
-      <RailButton icon={<LineIcon />} label="Line" active={activeToolId === "arrow"} onClick={() => editor.setCurrentTool("arrow")} />
+      <RailButton icon={<TodoIcon />} label="To-do" dragToolId="todo" onClick={insertTodo} />
+      <RailButton
+        icon={<LineIcon />}
+        label="Line"
+        active={activeToolId === "arrow"}
+        dragToolId="arrow"
+        onClick={() => editor.setCurrentTool("arrow")}
+      />
 
       <div style={{ position: "relative" }}>
-        <RailButton icon={<BoardIcon />} label="Board" active={boardOpen} onClick={() => rail && setBoardOpen((v) => !v)} />
+        <RailButton icon={<BoardIcon />} label="Board" active={boardOpen} dragToolId="board" onClick={() => rail && setBoardOpen((v) => !v)} />
         {boardOpen && (
           <form
             onSubmit={submitBoard}
@@ -219,7 +236,13 @@ export function MilanoteToolbar() {
         )}
       </div>
 
-      <RailButton icon={<ColumnIcon />} label="Column" active={activeToolId === "frame"} onClick={() => editor.setCurrentTool("frame")} />
+      <RailButton
+        icon={<ColumnIcon />}
+        label="Column"
+        active={activeToolId === "frame"}
+        dragToolId="frame"
+        onClick={() => editor.setCurrentTool("frame")}
+      />
       <RailButton icon={<CommentIcon />} label="Comment" onClick={() => rail?.toggleComments()} />
 
       <div style={{ position: "relative" }}>
@@ -269,12 +292,18 @@ export function MilanoteToolbar() {
       <div style={{ width: 44, borderTop: "1px solid #e4e4e7", margin: "4px 0" }} />
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImagePick} />
-      <RailButton icon={<ImageIcon />} label="Add image" onClick={() => imageInputRef.current?.click()} />
+      <RailButton icon={<ImageIcon />} label="Add image" dragToolId="asset" onClick={() => imageInputRef.current?.click()} />
 
       <input ref={uploadInputRef} type="file" hidden onChange={handleUploadPick} />
-      <RailButton icon={<UploadIcon />} label="Upload" onClick={() => uploadInputRef.current?.click()} />
+      <RailButton icon={<UploadIcon />} label="Upload" dragToolId="upload" onClick={() => uploadInputRef.current?.click()} />
 
-      <RailButton icon={<DrawIcon />} label="Draw" active={activeToolId === "draw"} onClick={() => editor.setCurrentTool("draw")} />
+      <RailButton
+        icon={<DrawIcon />}
+        label="Draw"
+        active={activeToolId === "draw"}
+        dragToolId="draw"
+        onClick={() => editor.setCurrentTool("draw")}
+      />
 
       <div style={{ flex: 1 }} />
 
@@ -289,17 +318,28 @@ function RailButton({
   icon,
   label,
   active,
+  dragToolId,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  dragToolId?: string;
   onClick?: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       title={label}
+      draggable={!!dragToolId}
+      onDragStart={
+        dragToolId
+          ? (e) => {
+              e.dataTransfer.setData(DRAG_MIME, dragToolId);
+              e.dataTransfer.effectAllowed = "copy";
+            }
+          : undefined
+      }
       style={{
         display: "flex",
         flexDirection: "column",
@@ -308,7 +348,7 @@ function RailButton({
         width: 56,
         border: "none",
         background: "transparent",
-        cursor: "pointer",
+        cursor: dragToolId ? "grab" : "pointer",
         padding: "4px 0",
       }}
     >

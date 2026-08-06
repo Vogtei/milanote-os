@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tldraw, defaultShapeUtils, AssetRecordType, exportAs, getTipTapDefaultExtensions } from "tldraw";
+import { Tldraw, defaultShapeUtils, AssetRecordType, exportAs, getTipTapDefaultExtensions, createShapeId } from "tldraw";
 import type { Editor } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import "tldraw/tldraw.css";
@@ -13,7 +13,7 @@ import { FileShapeUtil } from "@/components/FileShape";
 import { minioAssetStore } from "@/lib/asset-store";
 import { OfflineBoardCanvas } from "@/components/OfflineBoardCanvas";
 import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/offline-cache";
-import { MilanoteToolbar, MilanoteRailContext } from "@/components/MilanoteToolbar";
+import { MilanoteToolbar, MilanoteRailContext, DRAG_MIME } from "@/components/MilanoteToolbar";
 import { MilanoteRichTextToolbar } from "@/components/MilanoteRichTextToolbar";
 import { CommentsPanel } from "@/components/CommentsPanel";
 
@@ -22,7 +22,7 @@ const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858
 const AUTOSAVE_MS = 3000;
 const STUCK_LOADING_MS = 10000;
 const textOptions = { tipTapConfig: { extensions: getTipTapDefaultExtensions({ codeBlock: {} }) } };
-const components = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar };
+const components = { Toolbar: MilanoteToolbar, RichTextToolbar: MilanoteRichTextToolbar, StylePanel: null };
 
 export function BoardCanvas({
   id,
@@ -190,11 +190,67 @@ function SyncedBoardCanvas({
     setCommentsOpen((v) => !v);
   }
 
+  // Dropping a rail icon onto the canvas creates the element at the exact
+  // drop point (matches real Milanote — verified by dragging Note/To-do onto
+  // a live board there). Tools that need a follow-up text input (Link,
+  // Board) don't have a clean point-based creation path, so dropping them
+  // just opens the same popover a click would; tools that arm a continuous
+  // gesture (Line, Draw) or open a file picker (Add image, Upload) likewise
+  // fall back to their click behavior rather than guessing a synthetic drag.
+  function handleDragOver(e: React.DragEvent) {
+    if (e.dataTransfer.types.includes(DRAG_MIME)) e.preventDefault();
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    const tool = e.dataTransfer.getData(DRAG_MIME);
+    if (!tool || !editor) return;
+    e.preventDefault();
+
+    const clickByTitle = (title: string) =>
+      document.querySelector<HTMLButtonElement>(`button[title="${title}"]`)?.click();
+
+    switch (tool) {
+      case "note": {
+        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+        const id = createShapeId();
+        editor.createShape({ id, type: "note", x: point.x - 100, y: point.y - 50 });
+        editor.setEditingShape(id);
+        break;
+      }
+      case "todo": {
+        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+        editor.createShape({ type: "todo", x: point.x - 110, y: point.y - 90 });
+        break;
+      }
+      case "frame": {
+        const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+        editor.createShape({ type: "frame", x: point.x - 150, y: point.y - 100, props: { w: 300, h: 200 } });
+        break;
+      }
+      case "arrow":
+      case "draw":
+        editor.setCurrentTool(tool);
+        break;
+      case "link":
+        clickByTitle("Link");
+        break;
+      case "board":
+        clickByTitle("Board");
+        break;
+      case "asset":
+        clickByTitle("Add image");
+        break;
+      case "upload":
+        clickByTitle("Upload");
+        break;
+    }
+  }
+
   const isDisconnected = store.status === "synced-remote" && store.connectionStatus === "offline";
 
   return (
     <MilanoteRailContext.Provider value={{ createBoard, toggleComments }}>
-      <div className="relative h-full w-full">
+      <div className="relative h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
         <Tldraw
           store={store}
           shapeUtils={shapeUtils}

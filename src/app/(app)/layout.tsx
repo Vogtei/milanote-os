@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { Sidebar } from "@/components/Sidebar";
+import { SidebarToggle } from "@/components/SidebarToggle";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
@@ -11,6 +12,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-end gap-3 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-800">
+          <SidebarToggle />
           <span>{session.user.email}</span>
           <form
             action={async () => {

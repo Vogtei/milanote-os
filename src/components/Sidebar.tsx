@@ -8,32 +8,22 @@ import { NodeType } from "@/generated/prisma/enums";
 
 type Node = {
   id: string;
-  type: "FOLDER" | "BOARD";
   title: string;
-  parentId: string | null;
 };
 
-function NewNodeForm({
-  parentId,
-  onCreated,
-}: {
-  parentId: string | null;
-  onCreated: () => void;
-}) {
-  const [open, setOpen] = useState<null | "FOLDER" | "BOARD">(null);
+function NewBoardForm({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();
 
   if (!open) {
     return (
-      <div className="flex gap-2 pl-1 text-xs text-zinc-500">
-        <button onClick={() => setOpen("FOLDER")} className="hover:text-zinc-900 dark:hover:text-zinc-100">
-          + Ordner
-        </button>
-        <button onClick={() => setOpen("BOARD")} className="hover:text-zinc-900 dark:hover:text-zinc-100">
-          + Board
-        </button>
-      </div>
+      <button
+        onClick={() => setOpen(true)}
+        className="pl-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+      >
+        + Board
+      </button>
     );
   }
 
@@ -44,9 +34,9 @@ function NewNodeForm({
         e.preventDefault();
         if (!title.trim()) return;
         startTransition(async () => {
-          await createNode(open === "FOLDER" ? NodeType.FOLDER : NodeType.BOARD, title, parentId);
+          await createNode(NodeType.BOARD, title, null);
           setTitle("");
-          setOpen(null);
+          setOpen(false);
           onCreated();
         });
       }}
@@ -55,8 +45,8 @@ function NewNodeForm({
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => !title && setOpen(null)}
-        placeholder={open === "FOLDER" ? "Ordnername" : "Board-Name"}
+        onBlur={() => !title && setOpen(false)}
+        placeholder="Board-Name"
         className="w-full rounded border border-zinc-300 px-1.5 py-0.5 text-xs outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-50"
         disabled={isPending}
       />
@@ -64,29 +54,9 @@ function NewNodeForm({
   );
 }
 
-function NodeRow({ node, depth, onChanged }: { node: Node; depth: number; onChanged: () => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [children, setChildren] = useState<Node[] | null>(null);
-  const [loading, setLoading] = useState(false);
+function NodeRow({ node, onChanged }: { node: Node; onChanged: () => void }) {
   const pathname = usePathname();
   const active = pathname === `/board/${node.id}`;
-
-  async function loadChildren() {
-    setLoading(true);
-    const kids = await listChildren(node.id);
-    setChildren(kids as Node[]);
-    setLoading(false);
-  }
-
-  function toggle() {
-    const next = !expanded;
-    setExpanded(next);
-    if (next && children === null) void loadChildren();
-  }
-
-  function refreshChildren() {
-    if (expanded) void loadChildren();
-  }
 
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault();
@@ -100,76 +70,34 @@ function NodeRow({ node, depth, onChanged }: { node: Node; depth: number; onChan
     }
   }
 
-  const rowContent = (
-    <>
-      {node.type === "FOLDER" ? (
-        <button
-          onClick={toggle}
-          className="w-4 shrink-0 text-zinc-400"
-          aria-label={expanded ? "Zuklappen" : "Aufklappen"}
-        >
-          {expanded ? "▾" : "▸"}
-        </button>
-      ) : (
-        <span className="w-4 shrink-0" />
-      )}
-      <span className="shrink-0">{node.type === "FOLDER" ? "📁" : "🗒️"}</span>
-      <span className="truncate">{node.title}</span>
-      <button
-        onClick={handleDelete}
-        className="ml-auto hidden shrink-0 text-zinc-400 hover:text-red-600 group-hover:inline"
-        aria-label="Löschen"
-      >
-        ✕
-      </button>
-    </>
-  );
-
   return (
     <li>
-      {node.type === "BOARD" ? (
-        <Link
-          href={`/board/${node.id}`}
-          className={`group flex items-center gap-1.5 rounded px-1.5 py-1 text-sm ${
-            active
-              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-              : "text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          }`}
-          style={{ paddingLeft: `${depth * 14 + 6}px` }}
+      <Link
+        href={`/board/${node.id}`}
+        className={`group flex items-center gap-1.5 rounded px-1.5 py-1 text-sm ${
+          active
+            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            : "text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        }`}
+      >
+        <span className="shrink-0">🗒️</span>
+        <span className="truncate">{node.title}</span>
+        <button
+          onClick={handleDelete}
+          className="ml-auto hidden shrink-0 text-zinc-400 hover:text-red-600 group-hover:inline"
+          aria-label="Löschen"
         >
-          {rowContent}
-        </Link>
-      ) : (
-        <div
-          className="group flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-sm text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          style={{ paddingLeft: `${depth * 14 + 6}px` }}
-          onClick={toggle}
-        >
-          {rowContent}
-        </div>
-      )}
-
-      {expanded && (
-        <ul>
-          {loading && (
-            <li className="py-0.5 text-xs text-zinc-400" style={{ paddingLeft: `${(depth + 1) * 14 + 26}px` }}>
-              Lädt…
-            </li>
-          )}
-          {children?.map((child) => (
-            <NodeRow key={child.id} node={child} depth={depth + 1} onChanged={refreshChildren} />
-          ))}
-          <li style={{ paddingLeft: `${(depth + 1) * 14 + 26}px` }} className="py-0.5">
-            <NewNodeForm parentId={node.id} onCreated={refreshChildren} />
-          </li>
-        </ul>
-      )}
+          ✕
+        </button>
+      </Link>
     </li>
   );
 }
 
 export function Sidebar() {
   const [roots, setRoots] = useState<Node[] | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   async function reload() {
     const kids = await listChildren(null);
@@ -180,32 +108,72 @@ export function Sidebar() {
     void reload();
   }, []);
 
+  // Below `md`, the sidebar is a slide-in drawer — close it whenever the
+  // route changes (e.g. after picking a board) so it doesn't stay covering
+  // the canvas.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // The toggle button lives in the app header (a server component), outside
+  // this component's tree, so it can't reach this state via props/context.
+  // A board page's own left rail also occupies the top-left corner, so the
+  // toggle can't float there either without re-creating the exact overlap
+  // bug this responsive pass is meant to fix — a small window event is the
+  // simplest way to bridge the two without lifting state into the server
+  // layout.
+  useEffect(() => {
+    const handler = () => setMobileOpen((v) => !v);
+    window.addEventListener("toggle-sidebar", handler);
+    return () => window.removeEventListener("toggle-sidebar", handler);
+  }, []);
+
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex items-center justify-between px-3 py-3">
-        <Link href="/" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          milanote-os
-        </Link>
-      </div>
-      <nav className="flex-1 overflow-y-auto px-2">
-        <ul>
-          {roots === null && <li className="px-2 py-1 text-xs text-zinc-400">Lädt…</li>}
-          {roots?.map((node) => (
-            <NodeRow key={node.id} node={node} depth={0} onChanged={reload} />
-          ))}
-        </ul>
-        <div className="mt-1 px-2">
-          <NewNodeForm parentId={null} onCreated={reload} />
+    <>
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-[490] bg-black/30 md:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-[495] flex h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform duration-200 md:static md:z-auto md:translate-x-0 dark:border-zinc-800 dark:bg-zinc-950 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between px-3 py-3">
+          <Link href="/" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            milanote-os
+          </Link>
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Menü schließen"
+            className="text-zinc-400 hover:text-zinc-900 md:hidden dark:hover:text-zinc-100"
+          >
+            ✕
+          </button>
         </div>
-      </nav>
-      <div className="border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
-        <Link
-          href="/trash"
-          className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
-          🗑️ Papierkorb
-        </Link>
-      </div>
-    </aside>
+        <nav className="flex-1 overflow-y-auto px-2">
+          <ul>
+            {roots === null && <li className="px-2 py-1 text-xs text-zinc-400">Lädt…</li>}
+            {roots?.map((node) => (
+              <NodeRow key={node.id} node={node} onChanged={reload} />
+            ))}
+          </ul>
+          <div className="mt-1 px-2">
+            <NewBoardForm onCreated={reload} />
+          </div>
+        </nav>
+        <div className="border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
+          <Link
+            href="/trash"
+            className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            🗑️ Papierkorb
+          </Link>
+        </div>
+      </aside>
+    </>
   );
 }

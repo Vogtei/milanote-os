@@ -1,4 +1,4 @@
-import type { AnyItem, Camera, Item, Rect } from "@/canvas/types";
+import type { AnyItem, Camera, Item, NoteColor, Rect, Vec } from "@/canvas/types";
 import type { CanvasPalette } from "@/canvas/theme";
 import { viewportBounds } from "@/canvas/camera";
 import { HANDLES, handlePoint, itemBounds, rectsIntersect, unionBounds } from "@/canvas/geometry";
@@ -6,6 +6,10 @@ import { ellipsize, font, wrapText } from "@/canvas/text";
 import { coverRect, getImage } from "@/canvas/images";
 
 export type RenderState = {
+  /** How many children each nested board has, keyed by node id. Supplied by
+   *  the page on load — the canvas can't know it, and a stored count would go
+   *  stale the moment someone edits the other board. */
+  boardCounts: Record<string, number>;
   /** Device pixel ratio. render() resets the transform, so the backing-store
    *  scale has to be re-applied here rather than set once at resize time. */
   dpr: number;
@@ -27,6 +31,18 @@ export type RenderState = {
 
 const HANDLE_SIZE = 8;
 const PADDING = 14;
+
+// Documents written by an older version of the app can be missing props that
+// were added later — a board saved before todo cards had a colour, say. The
+// renderer resolves colours through these so a stale document degrades to the
+// default instead of throwing mid-frame and blanking the whole canvas.
+function noteColors(palette: CanvasPalette, color: NoteColor | undefined) {
+  return palette.note[color as NoteColor] ?? palette.note.yellow;
+}
+
+function strokeColor(palette: CanvasPalette, color: NoteColor | undefined) {
+  return palette.stroke[color as NoteColor] ?? palette.stroke.grey;
+}
 
 export function render(ctx: CanvasRenderingContext2D, state: RenderState) {
   const { camera, size, palette } = state;
@@ -98,7 +114,8 @@ function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderSta
     case "image": return drawImageItem(ctx, item, state);
     case "link": return drawLink(ctx, item, state);
     case "file": return drawFile(ctx, item, state);
-    case "board": return drawBoard(ctx, item, state);
+    case "board": return drawFolder(ctx, item, state);
+    case "document": return drawDocument(ctx, item, state);
     case "todo": return drawTodo(ctx, item, state);
     case "shape": return drawShape(ctx, item, state);
     case "draw": return drawStroke(ctx, item, state);
@@ -107,7 +124,7 @@ function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderSta
 }
 
 function drawNote(ctx: CanvasRenderingContext2D, item: Item<"note">, state: RenderState) {
-  const colors = state.palette.note[item.props.color];
+  const colors = noteColors(state.palette, item.props.color);
   withShadow(ctx, state.palette, () => {
     ctx.fillStyle = colors.fill;
     roundRect(ctx, itemBounds(item), 8);
@@ -118,10 +135,11 @@ function drawNote(ctx: CanvasRenderingContext2D, item: Item<"note">, state: Rend
   roundRect(ctx, itemBounds(item), 8);
   ctx.stroke();
 
-  if (state.editingId === item.id || !item.props.text) return;
+  if (state.editingId === item.id) return;
   const f = font(15);
-  const lines = wrapText(ctx, item.props.text, item.w - PADDING * 2, f);
-  ctx.fillStyle = colors.text;
+  const empty = !item.props.text;
+  const lines = wrapText(ctx, item.props.text || "Notiz schreiben…", item.w - PADDING * 2, f);
+  ctx.fillStyle = empty ? withAlpha(colors.text, 0.45) : colors.text;
   ctx.font = f;
   ctx.textBaseline = "top";
   let y = item.y + PADDING;
@@ -139,7 +157,7 @@ function drawText(ctx: CanvasRenderingContext2D, item: Item<"text">, state: Rend
   ctx.fillStyle = item.props.text
     ? item.props.color === "grey"
       ? state.palette.text
-      : state.palette.stroke[item.props.color]
+      : strokeColor(state.palette, item.props.color)
     : state.palette.textMuted;
   ctx.font = f;
   ctx.textBaseline = "top";
@@ -330,34 +348,101 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function drawBoard(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState) {
-  const bounds = itemBounds(item);
-  drawCardFrame(ctx, bounds, state);
+// A nested board reads as a folder: a plain tile, then the name and how much
+// is inside it underneath — the label sits outside the tile so long names
+// aren't clipped by it.
+function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState) {
+  const tileH = Math.max(24, item.h - 44);
+  const tile = { x: item.x + item.w * 0.14, y: item.y, w: item.w * 0.72, h: tileH };
+
+  ctx.fillStyle = state.palette.folderTile;
+  ctx.beginPath();
+  ctx.roundRect(tile.x, tile.y, tile.w, tile.h, 8);
+  ctx.fill();
+  ctx.strokeStyle = state.palette.cardBorder;
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   const cx = item.x + item.w / 2;
-  const iconY = item.y + item.h / 2 - 22;
-  ctx.strokeStyle = state.palette.textMuted;
-  ctx.lineWidth = 1.6;
-  for (const [dx, dy] of [[-11, -11], [1, -11], [-11, 1], [1, 1]]) {
-    ctx.beginPath();
-    ctx.roundRect(cx + dx, iconY + dy, 10, 10, 2);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = state.palette.text;
-  ctx.font = font(13, 600);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
+  ctx.fillStyle = state.palette.text;
+  ctx.font = font(13, 600);
   ctx.fillText(
-    ellipsize(ctx, item.props.title, item.w - 24, font(13, 600)),
+    ellipsize(ctx, item.props.title || "Neuer Ordner", item.w, font(13, 600)),
     cx,
-    item.y + item.h / 2 + 12,
+    item.y + tileH + 10,
   );
+
+  const count = state.boardCounts[item.props.nodeId] ?? 0;
+  ctx.fillStyle = state.palette.textMuted;
+  ctx.font = font(11);
+  ctx.fillText(count === 1 ? "1 Element" : `${count} Elemente`, cx, item.y + tileH + 28);
   ctx.textAlign = "start";
 }
 
+// Same silhouette as the folder — sheet, then name, then length — so a board
+// full of containers reads as one family of cards.
+function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, state: RenderState) {
+  const sheetH = Math.max(24, item.h - 44);
+  const sheetW = sheetH * 0.78;
+  const x = item.x + (item.w - sheetW) / 2;
+  const y = item.y;
+  const fold = Math.min(16, sheetW * 0.28);
+
+  ctx.beginPath();
+  ctx.moveTo(x, y + 3);
+  ctx.quadraticCurveTo(x, y, x + 3, y);
+  ctx.lineTo(x + sheetW - fold, y);
+  ctx.lineTo(x + sheetW, y + fold);
+  ctx.lineTo(x + sheetW, y + sheetH - 3);
+  ctx.quadraticCurveTo(x + sheetW, y + sheetH, x + sheetW - 3, y + sheetH);
+  ctx.lineTo(x + 3, y + sheetH);
+  ctx.quadraticCurveTo(x, y + sheetH, x, y + sheetH - 3);
+  ctx.closePath();
+  ctx.fillStyle = state.palette.sheet;
+  ctx.fill();
+  ctx.strokeStyle = state.palette.cardBorder;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Folded corner.
+  ctx.beginPath();
+  ctx.moveTo(x + sheetW - fold, y);
+  ctx.lineTo(x + sheetW - fold, y + fold);
+  ctx.lineTo(x + sheetW, y + fold);
+  ctx.stroke();
+
+  ctx.fillStyle = state.palette.sheetInk;
+  ctx.font = font(Math.min(20, sheetH * 0.34), 700);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("T", x + sheetW / 2, y + sheetH * 0.58);
+
+  const cx = item.x + item.w / 2;
+  ctx.textBaseline = "top";
+  ctx.fillStyle = state.palette.text;
+  ctx.font = font(13, 600);
+  ctx.fillText(
+    ellipsize(ctx, item.props.title || "Dokument", item.w, font(13, 600)),
+    cx,
+    item.y + sheetH + 10,
+  );
+
+  const words = countWords(item.props.content);
+  ctx.fillStyle = state.palette.textMuted;
+  ctx.font = font(11);
+  ctx.fillText(words === 1 ? "1 Wort" : `${words} Wörter`, cx, item.y + sheetH + 28);
+  ctx.textAlign = "start";
+}
+
+export function countWords(text: string): number {
+  const trimmed = text.trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
 function drawTodo(ctx: CanvasRenderingContext2D, item: Item<"todo">, state: RenderState) {
-  const colors = state.palette.note.yellow;
+  const colors = noteColors(state.palette, item.props.color);
   withShadow(ctx, state.palette, () => {
     ctx.fillStyle = colors.fill;
     roundRect(ctx, itemBounds(item), 8);
@@ -368,62 +453,167 @@ function drawTodo(ctx: CanvasRenderingContext2D, item: Item<"todo">, state: Rend
   roundRect(ctx, itemBounds(item), 8);
   ctx.stroke();
 
-  ctx.fillStyle = colors.text;
-  ctx.font = font(14, 700);
-  ctx.textBaseline = "top";
-  ctx.fillText(
-    ellipsize(ctx, item.props.title, item.w - 28, font(14, 700)),
-    item.x + 14,
-    item.y + 12,
-  );
+  if (state.editingId === item.id) return;
 
-  let y = item.y + 38;
+  let y = item.y + 16;
+  if (item.props.title) {
+    ctx.fillStyle = colors.text;
+    ctx.font = font(14, 700);
+    ctx.textBaseline = "top";
+    ctx.fillText(ellipsize(ctx, item.props.title, item.w - 28, font(14, 700)), item.x + 14, y);
+    y += 26;
+  }
+
+  // An empty list still shows one row, so it's obvious where to type.
+  const rows = item.props.entries.length > 0
+    ? item.props.entries
+    : [{ id: "placeholder", text: "", done: false }];
+
   ctx.font = font(13);
-  for (const entry of item.props.entries) {
+  ctx.textBaseline = "top";
+  for (const entry of rows) {
     if (y > item.y + item.h - 18) break;
-    ctx.strokeStyle = colors.border;
+    ctx.strokeStyle = withAlpha(colors.text, 0.35);
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.roundRect(item.x + 14, y + 1, 13, 13, 3);
+    ctx.roundRect(item.x + 14, y, 15, 15, 4);
     ctx.stroke();
     if (entry.done) {
+      ctx.strokeStyle = colors.text;
       ctx.beginPath();
-      ctx.moveTo(item.x + 17, y + 7.5);
-      ctx.lineTo(item.x + 20, y + 11);
-      ctx.lineTo(item.x + 24, y + 4);
+      ctx.moveTo(item.x + 18, y + 8);
+      ctx.lineTo(item.x + 21, y + 11.5);
+      ctx.lineTo(item.x + 25.5, y + 4);
       ctx.stroke();
     }
-    ctx.fillStyle = colors.text;
-    const label = ellipsize(ctx, entry.text || "…", item.w - 48, font(13));
-    ctx.fillText(label, item.x + 34, y);
-    if (entry.done) {
+
+    const empty = !entry.text;
+    ctx.fillStyle = empty || entry.done ? withAlpha(colors.text, 0.45) : colors.text;
+    const label = ellipsize(ctx, entry.text || "Aufgabe hinzufügen…", item.w - 52, font(13));
+    ctx.fillText(label, item.x + 38, y + 1);
+    if (entry.done && entry.text) {
       const width = ctx.measureText(label).width;
-      ctx.beginPath();
-      ctx.moveTo(item.x + 34, y + 8);
-      ctx.lineTo(item.x + 34 + width, y + 8);
+      ctx.strokeStyle = withAlpha(colors.text, 0.45);
       ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(item.x + 38, y + 9);
+      ctx.lineTo(item.x + 38 + width, y + 9);
       ctx.stroke();
     }
-    y += 24;
+    y += 26;
+  }
+}
+
+function shapePath(ctx: CanvasRenderingContext2D, item: Item<"shape">) {
+  const { x, y, w, h } = item;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  ctx.beginPath();
+  switch (item.props.kind) {
+    case "roundRect":
+      ctx.roundRect(x, y, w, h, Math.min(w, h) * 0.22);
+      break;
+    case "ellipse":
+      ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+      break;
+    case "triangle":
+      ctx.moveTo(cx, y);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+      break;
+    case "diamond":
+      ctx.moveTo(cx, y);
+      ctx.lineTo(x + w, cy);
+      ctx.lineTo(cx, y + h);
+      ctx.lineTo(x, cy);
+      ctx.closePath();
+      break;
+    case "bubble": {
+      const body = h * 0.78;
+      const r = Math.min(w, body) * 0.18;
+      ctx.roundRect(x, y, w, body, r);
+      ctx.moveTo(x + w * 0.24, y + body);
+      ctx.lineTo(x + w * 0.2, y + h);
+      ctx.lineTo(x + w * 0.44, y + body);
+      break;
+    }
+    case "parallelogram": {
+      const skew = w * 0.22;
+      ctx.moveTo(x + skew, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w - skew, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+      break;
+    }
+    case "star": {
+      const outer = Math.min(w, h) / 2;
+      const inner = outer * 0.44;
+      for (let i = 0; i < 10; i++) {
+        const radius = i % 2 === 0 ? outer : inner;
+        const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = cx + Math.cos(angle) * radius * (w / Math.min(w, h));
+        const py = cy + Math.sin(angle) * radius * (h / Math.min(w, h));
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case "blockArrow": {
+      const shaft = h * 0.34;
+      const headW = w * 0.36;
+      ctx.moveTo(x, cy - shaft / 2);
+      ctx.lineTo(x + w - headW, cy - shaft / 2);
+      ctx.lineTo(x + w - headW, y);
+      ctx.lineTo(x + w, cy);
+      ctx.lineTo(x + w - headW, y + h);
+      ctx.lineTo(x + w - headW, cy + shaft / 2);
+      ctx.lineTo(x, cy + shaft / 2);
+      ctx.closePath();
+      break;
+    }
+    case "line":
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x + w, y);
+      break;
+    case "doubleArrow": {
+      const shaft = h * 0.3;
+      const headW = w * 0.24;
+      ctx.moveTo(x, cy);
+      ctx.lineTo(x + headW, y);
+      ctx.lineTo(x + headW, cy - shaft / 2);
+      ctx.lineTo(x + w - headW, cy - shaft / 2);
+      ctx.lineTo(x + w - headW, y);
+      ctx.lineTo(x + w, cy);
+      ctx.lineTo(x + w - headW, y + h);
+      ctx.lineTo(x + w - headW, cy + shaft / 2);
+      ctx.lineTo(x + headW, cy + shaft / 2);
+      ctx.lineTo(x + headW, y + h);
+      ctx.closePath();
+      break;
+    }
+    case "pentagon":
+      for (let i = 0; i < 5; i++) {
+        const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+        const px = cx + (Math.cos(angle) * w) / 2;
+        const py = cy + (Math.sin(angle) * h) / 2;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    default:
+      ctx.roundRect(x, y, w, h, 6);
   }
 }
 
 function drawShape(ctx: CanvasRenderingContext2D, item: Item<"shape">, state: RenderState) {
-  const stroke = state.palette.stroke[item.props.color];
-  const { x, y, w, h } = item;
-  ctx.beginPath();
-  if (item.props.kind === "ellipse") {
-    ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-  } else if (item.props.kind === "diamond") {
-    ctx.moveTo(x + w / 2, y);
-    ctx.lineTo(x + w, y + h / 2);
-    ctx.lineTo(x + w / 2, y + h);
-    ctx.lineTo(x, y + h / 2);
-    ctx.closePath();
-  } else {
-    ctx.roundRect(x, y, w, h, 6);
-  }
-  if (item.props.fill) {
+  const stroke = strokeColor(state.palette, item.props.color);
+  shapePath(ctx, item);
+  // A line has no interior, so filling it would just thicken the stroke.
+  if (item.props.fill && item.props.kind !== "line") {
     ctx.fillStyle = stroke;
     ctx.globalAlpha = 0.22;
     ctx.fill();
@@ -431,15 +621,23 @@ function drawShape(ctx: CanvasRenderingContext2D, item: Item<"shape">, state: Re
   }
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
   ctx.stroke();
 }
 
 function drawStroke(ctx: CanvasRenderingContext2D, item: Item<"draw">, state: RenderState) {
   const points = item.props.points;
   if (points.length < 2) return;
-  ctx.strokeStyle = state.palette.stroke[item.props.color];
-  ctx.lineWidth = item.props.width;
-  ctx.lineCap = "round";
+  ctx.save();
+  ctx.strokeStyle = strokeColor(state.palette, item.props.color);
+  if (item.props.highlighter) {
+    ctx.lineWidth = item.props.width * 4;
+    ctx.globalAlpha = 0.35;
+    ctx.lineCap = "butt";
+  } else {
+    ctx.lineWidth = item.props.width;
+    ctx.lineCap = "round";
+  }
   ctx.lineJoin = "round";
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
@@ -451,28 +649,38 @@ function drawStroke(ctx: CanvasRenderingContext2D, item: Item<"draw">, state: Re
   }
   ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
   ctx.stroke();
+  ctx.restore();
 }
 
 function drawArrow(ctx: CanvasRenderingContext2D, item: Item<"arrow">, state: RenderState) {
   const start = { x: item.x, y: item.y };
   const end = item.props.end;
-  ctx.strokeStyle = state.palette.stroke[item.props.color];
+  ctx.save();
+  ctx.strokeStyle = strokeColor(state.palette, item.props.color);
   ctx.fillStyle = ctx.strokeStyle;
   ctx.lineWidth = item.props.width;
   ctx.lineCap = "round";
+  if (item.props.dashed) ctx.setLineDash([item.props.width * 4, item.props.width * 3]);
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
+  ctx.setLineDash([]);
 
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const head = 12;
-  ctx.beginPath();
-  ctx.moveTo(end.x, end.y);
-  ctx.lineTo(end.x - head * Math.cos(angle - 0.4), end.y - head * Math.sin(angle - 0.4));
-  ctx.lineTo(end.x - head * Math.cos(angle + 0.4), end.y - head * Math.sin(angle + 0.4));
-  ctx.closePath();
-  ctx.fill();
+  const head = 6 + item.props.width * 3;
+  const tip = (at: Vec, direction: number) => {
+    ctx.beginPath();
+    ctx.moveTo(at.x, at.y);
+    ctx.lineTo(at.x - direction * head * Math.cos(angle - 0.4), at.y - direction * head * Math.sin(angle - 0.4));
+    ctx.lineTo(at.x - direction * head * Math.cos(angle + 0.4), at.y - direction * head * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fill();
+  };
+  const heads = item.props.heads ?? "end";
+  if (heads !== "none") tip(end, 1);
+  if (heads === "both") tip(start, -1);
+  ctx.restore();
 }
 
 function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState) {
@@ -537,4 +745,15 @@ function drawMarquee(ctx: CanvasRenderingContext2D, state: RenderState) {
   ctx.fillRect(marquee.x, marquee.y, marquee.w, marquee.h);
   ctx.strokeRect(marquee.x + 0.5, marquee.y + 0.5, marquee.w, marquee.h);
   ctx.restore();
+}
+
+/** Applies an alpha to a hex colour, for placeholder and struck-through text
+ *  that has to stay readable on whatever card colour it lands on. */
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace("#", "");
+  const full = value.length === 3 ? value.split("").map((c) => c + c).join("") : value;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

@@ -25,7 +25,13 @@ const CURSORS: Partial<Record<ToolId, string>> = {
  * All board logic lives in BoardEditor — this component is deliberately thin
  * so the interaction model isn't tangled up with React's render cycle.
  */
-export function VosCanvas({ editor }: { editor: BoardEditor }) {
+export function VosCanvas({
+  editor,
+  boardCounts,
+}: {
+  editor: BoardEditor;
+  boardCounts: Record<string, number>;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -55,6 +61,7 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
       if (size.w === 0 || size.h === 0) return;
       render(ctx, {
         dpr: dprRef.current,
+        boardCounts,
         camera: editor.getCamera(),
         size,
         items: editor.store.getItems(),
@@ -92,7 +99,7 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
         frameRef.current = null;
       }
     };
-  }, [editor, theme]);
+  }, [editor, theme, boardCounts]);
 
   // Size the backing store to the device pixel ratio so text and hairlines
   // aren't blurry on retina displays.

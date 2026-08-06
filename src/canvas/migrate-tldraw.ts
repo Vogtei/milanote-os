@@ -171,7 +171,7 @@ function convert(
       const item = base(shape, "draw", Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
       item.x = Math.min(...xs);
       item.y = Math.min(...ys);
-      item.props = { points, color: color(p.color), width: 4 };
+      item.props = { points, color: color(p.color), width: 4, highlighter: false };
       return item as AnyItem;
     }
     case "arrow": {
@@ -184,14 +184,15 @@ function convert(
       const item = base(shape, "arrow", Math.abs(bx - ax), Math.abs(by - ay));
       item.x = ax;
       item.y = ay;
-      item.props = { end: { x: bx, y: by }, color: color(p.color), width: 2 };
+      item.props = { end: { x: bx, y: by }, color: color(p.color), width: 2, dashed: false, heads: "end" };
       return item as AnyItem;
     }
     case "todo": {
       const entries = Array.isArray(p.items) ? p.items : [];
       const item = base(shape, "todo", num(p.w, 240), num(p.h, 200));
       item.props = {
-        title: String(p.title ?? "To-do"),
+        color: "white",
+        title: String(p.title ?? ""),
         entries: entries.map((entry) => {
           const e = entry as { id?: string; text?: string; done?: boolean };
           return {

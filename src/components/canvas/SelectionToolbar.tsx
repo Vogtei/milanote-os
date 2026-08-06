@@ -27,6 +27,7 @@ export function SelectionToolbar({ editor }: { editor: BoardEditor }) {
   useEditorTick(editor);
   const { theme } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [widthOpen, setWidthOpen] = useState(false);
 
   const selected = editor.getSelectedItems();
   const rect = editor.getSelectionScreenRect();
@@ -37,6 +38,8 @@ export function SelectionToolbar({ editor }: { editor: BoardEditor }) {
 
   const viewport = editor.getSize();
   const colorable = selected.filter((item) => "color" in item.props);
+  const arrows = selected.filter((item) => item.type === "arrow");
+  const shapes = selected.filter((item) => item.type === "shape");
   const currentColor = colorable.length > 0 ? (colorable[0].props as { color: NoteColor }).color : null;
   const locked = editor.isSelectionLocked();
   const palette = PALETTES[theme];
@@ -98,6 +101,58 @@ export function SelectionToolbar({ editor }: { editor: BoardEditor }) {
 
       {currentColor && <Divider />}
 
+      {/* Line options, shown only for the item kinds they mean anything for. */}
+      {arrows.length > 0 && (
+        <>
+          <BarButton
+            label="Gestrichelt"
+            active={arrows.every((item) => item.type === "arrow" && item.props.dashed)}
+            onClick={() => {
+              const dashed = !arrows.every((item) => item.type === "arrow" && item.props.dashed);
+              editor.store.transact(() => {
+                for (const item of arrows) editor.store.updateProps(item.id, { dashed } as never);
+              });
+            }}
+          >
+            <DashIcon />
+          </BarButton>
+          <BarButton
+            label="Pfeilspitzen"
+            onClick={() => {
+              const order = ["end", "both", "none"] as const;
+              const first = arrows[0];
+              const current = first.type === "arrow" ? first.props.heads : "end";
+              const heads = order[(order.indexOf(current) + 1) % order.length];
+              editor.store.transact(() => {
+                for (const item of arrows) editor.store.updateProps(item.id, { heads } as never);
+              });
+            }}
+          >
+            <HeadIcon />
+          </BarButton>
+          <BarButton label="Stärke" onClick={() => setWidthOpen((v) => !v)} active={widthOpen}>
+            <WidthIcon />
+          </BarButton>
+        </>
+      )}
+
+      {shapes.length > 0 && (
+        <BarButton
+          label="Füllen"
+          active={shapes.every((item) => item.type === "shape" && item.props.fill)}
+          onClick={() => {
+            const fill = !shapes.every((item) => item.type === "shape" && item.props.fill);
+            editor.store.transact(() => {
+              for (const item of shapes) editor.store.updateProps(item.id, { fill } as never);
+            });
+          }}
+        >
+          <FillIcon />
+        </BarButton>
+      )}
+
+      {(arrows.length > 0 || shapes.length > 0) && <Divider />}
+
       <BarButton
         label={locked ? "Entsperren" : "Sperren"}
         active={locked}
@@ -107,6 +162,27 @@ export function SelectionToolbar({ editor }: { editor: BoardEditor }) {
       </BarButton>
 
       <Divider />
+
+      {widthOpen && (
+        <div className="vos-panel vos-panel-shadow absolute left-1/2 top-[46px] flex -translate-x-1/2 gap-1 rounded-xl p-1.5">
+          {[1, 2, 4, 7].map((width) => (
+            <button
+              key={width}
+              aria-label={`Stärke ${width}`}
+              onClick={() => {
+                editor.setStrokeWidth(width);
+                setWidthOpen(false);
+              }}
+              className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--vos-hover-soft)]"
+            >
+              <span
+                className="rounded-full bg-[var(--vos-text-strong)]"
+                style={{ width: 4 + width, height: 4 + width }}
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       <BarButton label="Duplizieren" onClick={() => editor.duplicateSelection()}>
         <CopyIcon size={18} />
@@ -151,5 +227,40 @@ function BarButton({
     >
       {children}
     </button>
+  );
+}
+
+function DashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M4 12h4M11 12h2M16 12h4" />
+    </svg>
+  );
+}
+
+function HeadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12h13" />
+      <path d="m13 7.5 4.5 4.5L13 16.5" />
+    </svg>
+  );
+}
+
+function WidthIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14" />
+      <path d="m8.5 8.5 3.5-3.5 3.5 3.5M8.5 15.5 12 19l3.5-3.5" />
+    </svg>
+  );
+}
+
+function FillIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+      <path d="M4.5 14 14 4.5M4.5 19.5 19.5 4.5M10 19.5 19.5 10" strokeWidth="1" />
+    </svg>
   );
 }

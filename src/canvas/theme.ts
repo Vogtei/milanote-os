@@ -16,6 +16,12 @@ export type CanvasPalette = {
   marqueeFill: string;
   cardBackground: string;
   cardBorder: string;
+  /** Folder tile and document sheet — the two container cards read as objects
+   *  sitting on the board rather than panels of it, so they get their own
+   *  surfaces. */
+  folderTile: string;
+  sheet: string;
+  sheetInk: string;
   text: string;
   textMuted: string;
   /** Per-note-colour card fills and their readable text colour. */
@@ -79,6 +85,9 @@ export const PALETTES: Record<ThemeName, CanvasPalette> = {
     marqueeFill: "rgba(110,168,254,0.12)",
     cardBackground: "#232428",
     cardBorder: "#3a3b41",
+    folderTile: "#26272c",
+    sheet: "#f4f3ef",
+    sheetInk: "#3a3b41",
     text: "#f4f3ef",
     textMuted: "#9c998f",
     note: DARK_NOTES,
@@ -94,6 +103,9 @@ export const PALETTES: Record<ThemeName, CanvasPalette> = {
     marqueeFill: "rgba(47,111,208,0.10)",
     cardBackground: "#ffffff",
     cardBorder: "#dedcd6",
+    folderTile: "#e7e5df",
+    sheet: "#ffffff",
+    sheetInk: "#5c5b57",
     text: "#1b1c20",
     textMuted: "#6b6a65",
     note: LIGHT_NOTES,

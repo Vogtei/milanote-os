@@ -16,6 +16,7 @@ import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/Can
 import { BoardTopBar, type BoardChrome } from "@/components/canvas/BoardTopBar";
 import { DRAG_MIME } from "@/components/canvas/tools";
 import { ZoomControls } from "@/components/vos/ZoomControls";
+import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -27,12 +28,14 @@ export function BoardShell({
   chrome,
   readonly,
   canComment,
+  boardCounts,
 }: {
   boardId: string;
   initialDoc: Doc;
   chrome: BoardChrome;
   readonly: boolean;
   canComment: boolean;
+  boardCounts: Record<string, number>;
 }) {
   const editor = useMemo(() => new BoardEditor(initialDoc), [initialDoc]);
 
@@ -48,6 +51,7 @@ export function BoardShell({
         chrome={chrome}
         readonly={readonly}
         canComment={canComment}
+        boardCounts={boardCounts}
       />
     </CanvasActionsProvider>
   );
@@ -59,17 +63,20 @@ function BoardSurface({
   chrome,
   readonly,
   canComment,
+  boardCounts,
 }: {
   editor: BoardEditor;
   boardId: string;
   chrome: BoardChrome;
   readonly: boolean;
   canComment: boolean;
+  boardCounts: Record<string, number>;
 }) {
   const router = useRouter();
   const actions = useCanvasActions();
   const { theme } = useTheme();
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
@@ -120,6 +127,7 @@ function BoardSurface({
         if (event.type === "openBoard") router.push(`/board/${event.nodeId}`);
         if (event.type === "requestEdit") editor.setEditing(event.itemId);
         if (event.type === "requestImage") actions.fillImage(event.itemId);
+        if (event.type === "requestDocument") setDocumentId(event.itemId);
       }),
     [editor, router, actions],
   );
@@ -127,9 +135,10 @@ function BoardSurface({
   const onExport = useCallback(async () => {
     const ok = await exportBoardPng(editor.store.getItems(), PALETTES[theme], {
       filename: `${chrome.title || "board"}.png`,
+      boardCounts,
     });
     if (!ok) console.warn("[board] nothing to export");
-  }, [editor, theme, chrome.title]);
+  }, [editor, theme, chrome.title, boardCounts]);
 
   // Dropping a rail button on the canvas creates that item at the drop point.
   const onDrop = useCallback(
@@ -152,7 +161,7 @@ function BoardSurface({
       }}
       onDrop={onDrop}
     >
-      <VosCanvas editor={editor} />
+      <VosCanvas editor={editor} boardCounts={boardCounts} />
 
       <BoardTopBar
         editor={editor}
@@ -168,6 +177,10 @@ function BoardSurface({
         <ZoomControls editor={editor} />
       </span>
       <MobileBar editor={editor} />
+
+      {documentId && (
+        <DocumentWindow editor={editor} itemId={documentId} onClose={() => setDocumentId(null)} />
+      )}
 
       <CommentsPanel
         boardId={boardId}

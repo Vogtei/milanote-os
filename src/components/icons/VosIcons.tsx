@@ -208,3 +208,38 @@ export function ImagePlaceholderIcon({ className, size }: IconProps) {
     </svg>
   );
 }
+
+export function FolderIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <path d="M3.5 18V7a1.5 1.5 0 0 1 1.5-1.5h4L11 8h8a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18Z" />
+    </svg>
+  );
+}
+
+export function DocumentIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <path d="M6 4.5h7l5 5V19a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 19Z" />
+      <path d="M13 4.5v5h5" />
+    </svg>
+  );
+}
+
+export function EraserIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <path d="M8 19.5 4.6 16a1.5 1.5 0 0 1 0-2.1l8.3-8.3a1.5 1.5 0 0 1 2.1 0l3.4 3.4a1.5 1.5 0 0 1 0 2.1L11.5 19.5Z" />
+      <path d="M8 19.5h10" />
+    </svg>
+  );
+}
+
+export function HighlighterIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <path d="M9 15.5 5.5 19h4l1.5-1.5" />
+      <path d="M13.5 5.5 18.5 10.5 11 18l-5-5Z" />
+    </svg>
+  );
+}

@@ -1,4 +1,4 @@
-import type { AnyItem, Camera, Doc, ItemType, NoteColor, Rect, Vec } from "@/canvas/types";
+import type { AnyItem, Camera, Doc, ItemType, NoteColor, Rect, ShapeKind, Vec } from "@/canvas/types";
 import { DEFAULT_SIZES, defaultProps } from "@/canvas/types";
 import { BoardStore } from "@/canvas/store";
 import {
@@ -33,14 +33,16 @@ export type ToolId =
   | "todo"
   | "board"
   | "image"
+  | "document"
   | "file"
   | "link"
   | "shape"
   | "draw"
+  | "eraser"
   | "arrow";
 
 /** Tools that place an item where you click/drag instead of selecting. */
-const PLACING_TOOLS: ToolId[] = ["note", "text", "todo", "shape"];
+const PLACING_TOOLS: ToolId[] = ["note", "text", "todo", "shape", "document"];
 
 type Interaction =
   | { kind: "none" }
@@ -51,7 +53,8 @@ type Interaction =
   | { kind: "marquee"; originScreen: Vec; currentScreen: Vec; additive: boolean; base: Set<string> }
   | { kind: "draw"; id: string }
   | { kind: "arrow"; id: string }
-  | { kind: "createShape"; id: string; origin: Vec };
+  | { kind: "createShape"; id: string; origin: Vec }
+  | { kind: "erase" };
 
 const DRAG_THRESHOLD = 3;
 const HANDLE_HIT = 10;
@@ -61,7 +64,8 @@ export type EditorEvent =
   | { type: "change" }
   | { type: "openBoard"; nodeId: string }
   | { type: "requestEdit"; itemId: string }
-  | { type: "requestImage"; itemId: string };
+  | { type: "requestImage"; itemId: string }
+  | { type: "requestDocument"; itemId: string };
 
 /**
  * Owns everything about the board that isn't React: the document, the camera,
@@ -85,6 +89,9 @@ export class BoardEditor {
   private spaceDown = false;
   private listeners = new Set<(event: EditorEvent) => void>();
   private color: NoteColor = "yellow";
+  private shapeKind: ShapeKind = "rect";
+  private strokeWidth = 4;
+  private highlighter = false;
   private readonly = false;
 
   constructor(doc?: Doc) {
@@ -117,6 +124,42 @@ export class BoardEditor {
   getHovered() { return this.hovered; }
   getEditingId() { return this.editingId; }
   getColor() { return this.color; }
+  getShapeKind() { return this.shapeKind; }
+  getStrokeWidth() { return this.strokeWidth; }
+  isHighlighter() { return this.highlighter; }
+
+  setShapeKind(kind: ShapeKind) {
+    this.shapeKind = kind;
+    // Applies to the selection too, so the picker doubles as an editor for a
+    // shape that's already on the board.
+    if (this.selection.size > 0) {
+      this.store.transact(() => {
+        for (const item of this.getSelectedItems()) {
+          if (item.type === "shape") this.store.updateProps(item.id, { kind } as never);
+        }
+      });
+    }
+    this.changed();
+  }
+
+  setStrokeWidth(width: number) {
+    this.strokeWidth = width;
+    if (this.selection.size > 0) {
+      this.store.transact(() => {
+        for (const item of this.getSelectedItems()) {
+          if (item.type === "draw" || item.type === "arrow") {
+            this.store.updateProps(item.id, { width } as never);
+          }
+        }
+      });
+    }
+    this.changed();
+  }
+
+  setHighlighter(on: boolean) {
+    this.highlighter = on;
+    this.changed();
+  }
   getMarquee(): Rect | null {
     return this.interaction.kind === "marquee"
       ? normalizeRect(this.interaction.originScreen, this.interaction.currentScreen)
@@ -304,6 +347,10 @@ export class BoardEditor {
     if (this.editingId) this.setEditing(null);
 
     if (!this.readonly) {
+      if (this.tool === "eraser") {
+        this.interaction = { kind: "erase" };
+        return this.eraseAt(world);
+      }
       if (this.tool === "draw") return this.beginDraw(world);
       if (this.tool === "arrow") return this.beginArrow(world);
       if (PLACING_TOOLS.includes(this.tool)) return this.placeWithTool(world);
@@ -447,6 +494,8 @@ export class BoardEditor {
         });
         return;
       }
+      case "erase":
+        return this.eraseAt(world);
       case "createShape": {
         const { origin, id } = this.interaction;
         const rect = normalizeRect(origin, world);
@@ -507,31 +556,50 @@ export class BoardEditor {
     }
   }
 
+  /** The eraser only takes freehand strokes and arrows — the ink, not the
+   *  content. Deleting a note by brushing past it would be far too easy. */
+  private eraseAt(world: Vec) {
+    const doomed = this.store
+      .getItems()
+      .filter((item) => (item.type === "draw" || item.type === "arrow") && this.hitsItem(item, world))
+      .map((item) => item.id);
+    if (doomed.length > 0) this.store.transact(() => this.store.remove(doomed));
+  }
+
   private beginDraw(world: Vec) {
-    const item = this.createItem("draw", world, { points: [world], color: this.color, width: 4 });
+    const item = this.createItem("draw", world, {
+      points: [world],
+      color: this.color,
+      width: this.strokeWidth,
+      highlighter: this.highlighter,
+    });
     this.store.transact(() => this.store.update(item.id, boundsOfPoints([world])));
     this.interaction = { kind: "draw", id: item.id };
   }
 
   private beginArrow(world: Vec) {
-    const item = this.createItem("arrow", world, { end: world, color: this.color, width: 2 });
+    const item = this.createItem("arrow", world, {
+      end: world,
+      color: this.color,
+      width: Math.max(2, this.strokeWidth / 2),
+    });
     this.store.transact(() => this.store.update(item.id, { x: world.x, y: world.y, w: 0, h: 0 }));
     this.interaction = { kind: "arrow", id: item.id };
   }
 
   private placeWithTool(world: Vec) {
     if (this.tool === "shape") {
-      const item = this.createItem("shape", world);
+      const item = this.createItem("shape", world, { kind: this.shapeKind });
       this.store.transact(() =>
         this.store.update(item.id, { x: world.x, y: world.y, w: 8, h: 8 }),
       );
       this.interaction = { kind: "createShape", id: item.id, origin: world };
       return;
     }
-    const item = this.createItem(this.tool as "note" | "text" | "todo", world);
+    const item = this.createItem(this.tool as "note" | "text" | "todo" | "document", world);
     this.setTool("select");
     this.setSelection([item.id]);
-    if (item.type === "note" || item.type === "text") {
+    if (item.type === "note" || item.type === "text" || item.type === "todo") {
       this.emit({ type: "requestEdit", itemId: item.id });
     }
   }
@@ -554,6 +622,8 @@ export class BoardEditor {
     // An image is created empty and gets its picture on double-click, so the
     // card exists on the board before the file dialog ever opens.
     if (hit.type === "image") return this.emit({ type: "requestImage", itemId: hit.id });
+    // A document is too long-form for the canvas; it opens in its own window.
+    if (hit.type === "document") return this.emit({ type: "requestDocument", itemId: hit.id });
     if (hit.type === "note" || hit.type === "text" || hit.type === "todo") {
       this.emit({ type: "requestEdit", itemId: hit.id });
     }
@@ -589,6 +659,10 @@ export class BoardEditor {
    *  and the gesture turns out to be a pinch, not a drag. */
   cancelInteraction() {
     if (this.interaction.kind === "none") return;
+    if (this.interaction.kind === "erase") {
+      this.interaction = { kind: "none" };
+      return this.changed();
+    }
     if (this.interaction.kind === "draw" || this.interaction.kind === "arrow" || this.interaction.kind === "createShape") {
       const id = this.interaction.id;
       this.store.transact(() => this.store.remove([id]));

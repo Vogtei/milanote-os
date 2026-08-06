@@ -1,39 +1,70 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { BoardEditor, ToolId } from "@/canvas/editor";
+import type { ShapeKind } from "@/canvas/types";
+import { SHAPE_KINDS } from "@/canvas/types";
+import { NOTE_COLORS, PALETTES } from "@/canvas/theme";
 import { DRAG_MIME, TOOLS } from "@/components/canvas/tools";
 import { useCanvasActions } from "@/components/canvas/CanvasActions";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
+import { useTheme } from "@/components/ThemeProvider";
+import { EraserIcon, HighlighterIcon } from "@/components/icons/VosIcons";
+import { ShapeGlyph } from "@/components/canvas/ShapeGlyph";
 
 /**
- * Desktop tool rail. Hidden below `md`, where the FAB and bottom sheet take
- * over — a 64px column is a fifth of a phone screen and popovers anchored to
- * its right edge run straight off the viewport.
+ * Desktop tool rail. Permanent — selection options live in a floating bar
+ * above the element instead, so the tools never move.
+ *
+ * Hidden below `md`, where the FAB and bottom sheet take over: a 64px column
+ * is a fifth of a phone screen, and popovers anchored to its right edge run
+ * straight off the viewport.
  */
 export function CanvasRail({ editor }: { editor: BoardEditor }) {
   useEditorTick(editor);
   const actions = useCanvasActions();
+  const [popover, setPopover] = useState<"shape" | "draw" | null>(null);
+  const railRef = useRef<HTMLElement>(null);
 
-  // The rail is permanent — selection options appear in a floating bar above
-  // the element instead, so the tools never move out from under the pointer.
+  useEffect(() => {
+    if (!popover) return;
+    const onDown = (e: PointerEvent) => {
+      if (!railRef.current?.contains(e.target as Node)) setPopover(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [popover]);
+
   if (editor.isReadonly()) return null;
   const active = editor.getTool();
 
   return (
     <aside
+      ref={railRef}
       className="vos-panel pointer-events-auto absolute left-2.5 top-1/2 z-[280] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 overflow-y-auto rounded-[15px] py-2.5 md:flex"
       style={{ maxHeight: "calc(100% - 130px)" }}
       aria-label="Werkzeuge"
     >
       {TOOLS.map((tool) => (
-        <RailButton
-          key={tool.id}
-          label={tool.label}
-          active={active === tool.id}
-          icon={<tool.icon size={22} />}
-          dragToolId={tool.id}
-          onClick={() => runTool(editor, actions, tool.id)}
-        />
+        <div key={tool.id} className="relative">
+          <RailButton
+            label={tool.label}
+            active={active === tool.id}
+            icon={<tool.icon size={22} />}
+            dragToolId={tool.id}
+            onClick={() => {
+              if (tool.popover) {
+                editor.setTool(tool.id);
+                setPopover((open) => (open === tool.popover ? null : tool.popover!));
+                return;
+              }
+              setPopover(null);
+              runTool(editor, actions, tool.id);
+            }}
+          />
+          {popover === "shape" && tool.popover === "shape" && <ShapePicker editor={editor} />}
+          {popover === "draw" && tool.popover === "draw" && <DrawOptions editor={editor} />}
+        </div>
       ))}
     </aside>
   );
@@ -54,14 +85,110 @@ export function runTool(
     default:
       // Placement tools arm themselves; if a drop point is known, place the
       // item there immediately instead of making the user click twice.
-      if (at && (id === "note" || id === "text" || id === "todo")) {
+      if (at && (id === "note" || id === "text" || id === "todo" || id === "document")) {
         const item = editor.createItem(id, at);
         editor.setSelection([item.id]);
-        if (id !== "todo") editor.setEditing(item.id);
+        if (id === "note" || id === "text" || id === "todo") editor.setEditing(item.id);
         return;
       }
       editor.setTool(id);
   }
+}
+
+const POPOVER = "vos-panel vos-panel-shadow absolute left-[60px] top-0 z-[400] rounded-2xl p-2.5";
+
+function ShapePicker({ editor }: { editor: BoardEditor }) {
+  const current = editor.getShapeKind();
+  return (
+    <div className={`${POPOVER} grid w-[168px] grid-cols-3 gap-1`} role="group" aria-label="Formen">
+      {SHAPE_KINDS.map((kind) => (
+        <button
+          key={kind}
+          aria-label={kind}
+          aria-pressed={current === kind}
+          onClick={() => editor.setShapeKind(kind)}
+          className={`grid h-[46px] place-items-center rounded-xl transition-colors ${
+            current === kind
+              ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
+              : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+          }`}
+        >
+          <ShapeGlyph kind={kind as ShapeKind} size={22} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const STROKE_WIDTHS = [2, 4, 8, 14];
+
+function DrawOptions({ editor }: { editor: BoardEditor }) {
+  const { theme } = useTheme();
+  const palette = PALETTES[theme];
+  const color = editor.getColor();
+  const width = editor.getStrokeWidth();
+  const highlighter = editor.isHighlighter();
+
+  return (
+    <div className={`${POPOVER} w-[168px]`} role="group" aria-label="Zeichnen">
+      <div className="grid grid-cols-5 gap-1.5">
+        {NOTE_COLORS.map((option) => (
+          <button
+            key={option}
+            aria-label={`Farbe ${option}`}
+            aria-pressed={color === option}
+            onClick={() => editor.setColor(option)}
+            className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${
+              color === option ? "ring-2 ring-[var(--vos-text-strong)] ring-offset-2 ring-offset-transparent" : ""
+            }`}
+            style={{ background: palette.stroke[option], borderColor: palette.note[option].border }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-1">
+        {STROKE_WIDTHS.map((option) => (
+          <button
+            key={option}
+            aria-label={`Stärke ${option}`}
+            aria-pressed={width === option}
+            onClick={() => editor.setStrokeWidth(option)}
+            className={`grid h-8 w-8 place-items-center rounded-lg ${
+              width === option ? "bg-[var(--vos-hover)]" : "hover:bg-[var(--vos-hover-soft)]"
+            }`}
+          >
+            <span
+              className="rounded-full bg-[var(--vos-text-strong)]"
+              style={{ width: 4 + option * 0.7, height: 4 + option * 0.7 }}
+            />
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={() => editor.setHighlighter(!highlighter)}
+        aria-pressed={highlighter}
+        className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-medium ${
+          highlighter
+            ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
+            : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+        }`}
+      >
+        <HighlighterIcon size={15} /> Textmarker
+      </button>
+      <button
+        onClick={() => editor.setTool("eraser")}
+        aria-pressed={editor.getTool() === "eraser"}
+        className={`mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-medium ${
+          editor.getTool() === "eraser"
+            ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
+            : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+        }`}
+      >
+        <EraserIcon size={15} /> Radierer
+      </button>
+    </div>
+  );
 }
 
 export function RailButton({

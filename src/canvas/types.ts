@@ -16,10 +16,41 @@ export type ItemType =
   | "link"
   | "file"
   | "board"
+  | "document"
   | "todo"
   | "shape"
   | "draw"
   | "arrow";
+
+/** Shape vocabulary offered by the Formen picker. */
+export type ShapeKind =
+  | "rect"
+  | "roundRect"
+  | "ellipse"
+  | "triangle"
+  | "diamond"
+  | "bubble"
+  | "parallelogram"
+  | "star"
+  | "blockArrow"
+  | "line"
+  | "doubleArrow"
+  | "pentagon";
+
+export const SHAPE_KINDS: ShapeKind[] = [
+  "rect",
+  "roundRect",
+  "ellipse",
+  "triangle",
+  "diamond",
+  "bubble",
+  "parallelogram",
+  "star",
+  "blockArrow",
+  "line",
+  "doubleArrow",
+  "pentagon",
+];
 
 export type TodoEntry = { id: string; text: string; done: boolean };
 
@@ -29,11 +60,16 @@ export type ItemProps = {
   image: { src: string; alt: string };
   link: { url: string; title: string; description: string; image: string; favicon: string };
   file: { name: string; size: number; src: string };
+  /** A nested board. Presented as a folder, which is what it behaves like. */
   board: { nodeId: string; title: string };
-  todo: { title: string; entries: TodoEntry[] };
-  shape: { kind: "rect" | "ellipse" | "diamond"; color: NoteColor; fill: boolean };
-  draw: { points: Vec[]; color: NoteColor; width: number };
-  arrow: { end: Vec; color: NoteColor; width: number };
+  /** A long-form text document, edited in its own window rather than on the
+   *  canvas — the card only shows its title and length. */
+  document: { title: string; content: string };
+  todo: { title: string; entries: TodoEntry[]; color: NoteColor };
+  shape: { kind: ShapeKind; color: NoteColor; fill: boolean };
+  /** `highlighter` strokes draw wide and translucent, under everything else. */
+  draw: { points: Vec[]; color: NoteColor; width: number; highlighter: boolean };
+  arrow: { end: Vec; color: NoteColor; width: number; dashed: boolean; heads: "end" | "both" | "none" };
 };
 
 export type NoteColor =
@@ -87,8 +123,9 @@ export const DEFAULT_SIZES: Record<ItemType, { w: number; h: number }> = {
   image: { w: 320, h: 240 },
   link: { w: 280, h: 260 },
   file: { w: 240, h: 72 },
-  board: { w: 220, h: 140 },
-  todo: { w: 240, h: 200 },
+  board: { w: 150, h: 130 },
+  document: { w: 150, h: 130 },
+  todo: { w: 260, h: 120 },
   shape: { w: 180, h: 140 },
   draw: { w: 0, h: 0 },
   arrow: { w: 0, h: 0 },
@@ -101,11 +138,12 @@ export function defaultProps<T extends ItemType>(type: T): ItemProps[T] {
     image: { src: "", alt: "" },
     link: { url: "", title: "", description: "", image: "", favicon: "" },
     file: { name: "", size: 0, src: "" },
-    board: { nodeId: "", title: "Board" },
-    todo: { title: "To-do", entries: [] },
-    shape: { kind: "rect", color: "blue", fill: false },
-    draw: { points: [], color: "grey", width: 4 },
-    arrow: { end: { x: 0, y: 0 }, color: "grey", width: 2 },
+    board: { nodeId: "", title: "Neuer Ordner" },
+    document: { title: "Dokument", content: "" },
+    todo: { title: "", entries: [], color: "white" },
+    shape: { kind: "rect", color: "grey", fill: false },
+    draw: { points: [], color: "grey", width: 4, highlighter: false },
+    arrow: { end: { x: 0, y: 0 }, color: "grey", width: 2, dashed: false, heads: "end" },
   };
   return byType[type];
 }

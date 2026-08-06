@@ -28,6 +28,24 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
   const parent = node.parentId ? await getNode(node.parentId) : null;
   const doc = await loadBoardDoc(id);
 
+  // Folder cards show how much is inside them. The canvas can't know that, and
+  // storing the number on the card would go stale the moment the other board
+  // changes — so it's resolved here, fresh on every load.
+  const nested = Object.values(doc.items)
+    .filter((item) => item.type === "board")
+    .map((item) => (item as { props: { nodeId: string } }).props.nodeId)
+    .filter(Boolean);
+  const counts = nested.length
+    ? await prisma.node.groupBy({
+        by: ["parentId"],
+        where: { parentId: { in: nested }, deletedAt: null },
+        _count: { _all: true },
+      })
+    : [];
+  const boardCounts = Object.fromEntries(
+    counts.map((row) => [row.parentId as string, row._count._all]),
+  );
+
   // Full-bleed canvas: breadcrumbs, tools, zoom and selection controls all
   // float over it as their own panels, so the board is never squeezed by a
   // header or a sidebar.
@@ -35,6 +53,7 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
     <BoardShell
       boardId={id}
       initialDoc={doc}
+      boardCounts={boardCounts}
       readonly={role === "VIEW" || role === "COMMENT"}
       canComment={role !== "VIEW"}
       chrome={{

@@ -11,7 +11,12 @@ import { render } from "@/canvas/renderer";
 export async function exportBoardPng(
   items: AnyItem[],
   palette: CanvasPalette,
-  options: { scale?: number; padding?: number; filename?: string } = {},
+  options: {
+    scale?: number;
+    padding?: number;
+    filename?: string;
+    boardCounts?: Record<string, number>;
+  } = {},
 ): Promise<boolean> {
   if (items.length === 0) return false;
 
@@ -30,6 +35,7 @@ export async function exportBoardPng(
   const draw = () =>
     render(ctx, {
       dpr: scale,
+      boardCounts: options.boardCounts ?? {},
       camera: { x: -bounds.x + padding, y: -bounds.y + padding, z: 1 },
       size: { w: width, h: height },
       items,

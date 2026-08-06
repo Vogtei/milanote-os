@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tldraw, createShapeId, defaultShapeUtils, AssetRecordType } from "tldraw";
+import { Tldraw, createShapeId, defaultShapeUtils, AssetRecordType, exportAs } from "tldraw";
 import type { Editor } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import "tldraw/tldraw.css";
@@ -72,6 +72,13 @@ export function BoardCanvas({
     });
   }
 
+  async function exportBoard() {
+    if (!editor) return;
+    const ids = [...editor.getCurrentPageShapeIds()];
+    if (ids.length === 0) return;
+    await exportAs(editor, ids, { format: "png", name: "board" });
+  }
+
   function insertTodo() {
     if (!editor) return;
     const center = editor.getViewportPageBounds().center;
@@ -110,15 +117,22 @@ export function BoardCanvas({
     <div className="relative h-full w-full">
       <Tldraw store={store} shapeUtils={shapeUtils} onMount={handleMount} />
 
-      {!readonly && (
       <div className="absolute right-3 top-3 z-[300] flex items-start gap-2">
+        <button
+          onClick={exportBoard}
+          className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          Exportieren
+        </button>
+        {!readonly && (
         <button
           onClick={insertTodo}
           className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
           + Todo
         </button>
-        {creating ? (
+        )}
+        {!readonly && (creating ? (
           <form
             onSubmit={submitNewBoardLink}
             className="flex items-center gap-1 rounded-md border border-zinc-300 bg-white p-1 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -147,9 +161,8 @@ export function BoardCanvas({
           >
             + Board einfügen
           </button>
-        )}
+        ))}
       </div>
-      )}
     </div>
   );
 }

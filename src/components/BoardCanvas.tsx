@@ -14,7 +14,15 @@ import { minioAssetStore } from "@/lib/asset-store";
 const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil, TodoShapeUtil];
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 
-export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: boolean }) {
+export function BoardCanvas({
+  id,
+  readonly = false,
+  userName,
+}: {
+  id: string;
+  readonly?: boolean;
+  userName?: string;
+}) {
   const store = useSync({
     uri: `${SYNC_URL}?boardId=${id}`,
     shapeUtils,
@@ -29,6 +37,7 @@ export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: b
   function handleMount(editor: Editor) {
     setEditor(editor);
     if (readonly) editor.updateInstanceState({ isReadonly: true });
+    if (userName) editor.user.updateUserPreferences({ name: userName });
 
     // Pasting or dropping a URL onto the canvas normally creates a bookmark
     // via tldraw's own (external) unfurl service. Override it with our

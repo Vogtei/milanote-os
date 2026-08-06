@@ -54,7 +54,11 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
         </div>
       </div>
       <div className="min-h-0 flex-1">
-        <BoardCanvas id={id} readonly={role === "VIEW" || role === "COMMENT"} />
+        <BoardCanvas
+          id={id}
+          readonly={role === "VIEW" || role === "COMMENT"}
+          userName={session.user.name || session.user.email || undefined}
+        />
       </div>
     </div>
   );

@@ -14,9 +14,9 @@ export function CanvasRail({ editor }: { editor: BoardEditor }) {
   useEditorTick(editor);
   const actions = useCanvasActions();
 
-  // ContextPanel takes this exact slot while something is selected. Both are
-  // absolutely positioned at the same spot, so exactly one of them may render.
-  if (editor.isReadonly() || editor.getSelection().size > 0) return null;
+  // The rail is permanent — selection options appear in a floating bar above
+  // the element instead, so the tools never move out from under the pointer.
+  if (editor.isReadonly()) return null;
   const active = editor.getTool();
 
   return (
@@ -48,7 +48,7 @@ export function runTool(
 ) {
   switch (id) {
     case "link": return actions.promptLink(at);
-    case "board": return actions.promptBoard(at);
+    case "board": return actions.createBoard(at);
     case "image": return actions.pickImage(at);
     case "file": return actions.pickFile(at);
     default:

@@ -171,3 +171,40 @@ export function MoonIcon({ className, size }: IconProps) {
     </svg>
   );
 }
+
+export function LockIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+export function UnlockIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8" />
+    </svg>
+  );
+}
+
+export function CopyIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 5.5h-9a2 2 0 0 0-2 2v9" />
+    </svg>
+  );
+}
+
+export function ImagePlaceholderIcon({ className, size }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className={className}>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <circle cx="8.5" cy="10" r="1.4" />
+      <path d="M3.5 16 9 11l3 3 3.5-3.5 5 5" />
+    </svg>
+  );
+}

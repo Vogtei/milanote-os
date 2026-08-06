@@ -152,6 +152,50 @@ function drawText(ctx: CanvasRenderingContext2D, item: Item<"text">, state: Rend
 
 function drawImageItem(ctx: CanvasRenderingContext2D, item: Item<"image">, state: RenderState) {
   const bounds = itemBounds(item);
+
+  // An image is placed empty and gets its picture on double-click, so the
+  // empty frame is a first-class state, not an error.
+  if (!item.props.src) {
+    ctx.save();
+    ctx.fillStyle = state.palette.cardBackground;
+    roundRect(ctx, bounds, 8);
+    ctx.fill();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = state.palette.cardBorder;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, bounds, 8);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const cx = bounds.x + bounds.w / 2;
+    const cy = bounds.y + bounds.h / 2;
+    ctx.strokeStyle = state.palette.textMuted;
+    ctx.lineWidth = 1.6;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.roundRect(cx - 17, cy - 26, 34, 28, 4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx - 7, cy - 17, 2.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 15, cy - 6);
+    ctx.lineTo(cx - 4, cy - 15);
+    ctx.lineTo(cx + 2, cy - 10);
+    ctx.lineTo(cx + 7, cy - 14);
+    ctx.lineTo(cx + 15, cy - 6);
+    ctx.stroke();
+
+    ctx.fillStyle = state.palette.textMuted;
+    ctx.font = font(12);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("Doppelklick für Bild", cx, cy + 10);
+    ctx.textAlign = "start";
+    ctx.restore();
+    return;
+  }
+
   const entry = getImage(item.props.src, state.invalidate);
   ctx.save();
   roundRect(ctx, bounds, 8);

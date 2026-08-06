@@ -62,6 +62,9 @@ export type Item<T extends ItemType = ItemType> = {
   w: number;
   h: number;
   rotation: number;
+  /** Locked items can still be selected (so they can be unlocked again) but
+   *  can't be dragged or resized. */
+  locked?: boolean;
   props: ItemProps[T];
 };
 

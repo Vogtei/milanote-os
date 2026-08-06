@@ -10,7 +10,7 @@ import { PALETTES } from "@/canvas/theme";
 import { saveBoardDoc } from "@/lib/board-doc";
 import { VosCanvas } from "@/components/canvas/VosCanvas";
 import { CanvasRail, runTool } from "@/components/canvas/CanvasRail";
-import { ContextPanel } from "@/components/canvas/ContextPanel";
+import { SelectionToolbar } from "@/components/canvas/SelectionToolbar";
 import { MobileBar } from "@/components/canvas/MobileBar";
 import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/CanvasActions";
 import { BoardTopBar, type BoardChrome } from "@/components/canvas/BoardTopBar";
@@ -119,8 +119,9 @@ function BoardSurface({
       editor.subscribe((event) => {
         if (event.type === "openBoard") router.push(`/board/${event.nodeId}`);
         if (event.type === "requestEdit") editor.setEditing(event.itemId);
+        if (event.type === "requestImage") actions.fillImage(event.itemId);
       }),
-    [editor, router],
+    [editor, router, actions],
   );
 
   const onExport = useCallback(async () => {
@@ -162,7 +163,7 @@ function BoardSurface({
       />
 
       <CanvasRail editor={editor} />
-      <ContextPanel editor={editor} />
+      <SelectionToolbar editor={editor} />
       <span className="hidden md:contents">
         <ZoomControls editor={editor} />
       </span>

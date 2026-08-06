@@ -60,7 +60,8 @@ const STROKE_HIT = 8;
 export type EditorEvent =
   | { type: "change" }
   | { type: "openBoard"; nodeId: string }
-  | { type: "requestEdit"; itemId: string };
+  | { type: "requestEdit"; itemId: string }
+  | { type: "requestImage"; itemId: string };
 
 /**
  * Owns everything about the board that isn't React: the document, the camera,
@@ -238,6 +239,7 @@ export class BoardEditor {
 
   private handleAt(screenPoint: Vec): HandleId | null {
     if (this.selection.size === 0 || this.readonly) return null;
+    if (this.getSelectedItems().some((item) => item.locked)) return null;
     const bounds = unionBounds(this.getSelectedItems().map(itemBounds));
     for (const handle of HANDLES) {
       const screen = worldToScreen(this.camera, handlePoint(bounds, handle));
@@ -340,7 +342,7 @@ export class BoardEditor {
     }
 
     if (!this.selection.has(hit.id)) this.setSelection([hit.id]);
-    if (this.readonly) return;
+    if (this.readonly || hit.locked) return;
     this.interaction = { kind: "maybeDrag", origin: world, itemId: hit.id, additive: false };
   }
 
@@ -549,6 +551,9 @@ export class BoardEditor {
     if (hit.type === "link" && hit.props.url) return void window.open(hit.props.url, "_blank", "noreferrer");
     if (hit.type === "file" && hit.props.src) return void window.open(hit.props.src, "_blank", "noreferrer");
     if (this.readonly) return;
+    // An image is created empty and gets its picture on double-click, so the
+    // card exists on the board before the file dialog ever opens.
+    if (hit.type === "image") return this.emit({ type: "requestImage", itemId: hit.id });
     if (hit.type === "note" || hit.type === "text" || hit.type === "todo") {
       this.emit({ type: "requestEdit", itemId: hit.id });
     }
@@ -598,6 +603,36 @@ export class BoardEditor {
   redo() { this.store.redo(); }
   canUndo() { return this.store.canUndo(); }
   canRedo() { return this.store.canRedo(); }
+
+  /** True when every selected item is locked — the toolbar shows the state of
+   *  the selection as a whole, so a mixed selection reads as unlocked. */
+  isSelectionLocked() {
+    const items = this.getSelectedItems();
+    return items.length > 0 && items.every((item) => item.locked);
+  }
+
+  toggleSelectionLock() {
+    if (this.readonly || this.selection.size === 0) return;
+    const locked = !this.isSelectionLocked();
+    this.store.transact(() => {
+      for (const id of this.selection) this.store.update(id, { locked });
+    });
+  }
+
+  /** Screen-space bounds of the current selection, for positioning DOM chrome
+   *  over the canvas. Null when nothing is selected. */
+  getSelectionScreenRect(): Rect | null {
+    const items = this.getSelectedItems();
+    if (items.length === 0) return null;
+    const bounds = unionBounds(items.map(itemBounds));
+    const topLeft = this.worldToScreen({ x: bounds.x, y: bounds.y });
+    return {
+      x: topLeft.x,
+      y: topLeft.y,
+      w: bounds.w * this.camera.z,
+      h: bounds.h * this.camera.z,
+    };
+  }
 
   bringToFront() {
     if (this.selection.size === 0) return;

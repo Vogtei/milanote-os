@@ -19,9 +19,9 @@ export type ToolSpec = {
   id: ToolId;
   label: string;
   icon: (props: { size?: number }) => React.ReactElement;
-  /** Needs a follow-up dialog (URL, filename, board name) before anything is
-   *  created, so it can't be placed directly by a click or a drop. */
-  prompts?: "link" | "board" | "image" | "file";
+  /** Opens a dialog or file picker before the item exists. Only Link and
+   *  Datei still do — Board and Bild create their item straight away. */
+  prompts?: "link" | "file";
 };
 
 // Order mirrors the reference app's rail, top to bottom.
@@ -29,8 +29,8 @@ export const TOOLS: ToolSpec[] = [
   { id: "select", label: "Wählen", icon: SelectIcon },
   { id: "note", label: "Notiz", icon: NoteIcon },
   { id: "text", label: "Text", icon: TextIcon },
-  { id: "board", label: "Board", icon: BoardIcon, prompts: "board" },
-  { id: "image", label: "Bild", icon: ImageIcon, prompts: "image" },
+  { id: "board", label: "Board", icon: BoardIcon },
+  { id: "image", label: "Bild", icon: ImageIcon },
   { id: "file", label: "Datei", icon: UploadIcon, prompts: "file" },
   { id: "link", label: "Link", icon: LinkIcon, prompts: "link" },
   { id: "todo", label: "To-do", icon: TodoIcon },

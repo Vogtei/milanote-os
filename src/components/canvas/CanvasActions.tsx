@@ -8,16 +8,24 @@ import { createNode } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
 import { uploadRawFile } from "@/lib/asset-store";
 
-// The four item kinds that can't be created by a plain click — they need a URL,
-// a board name or a file first. Both the desktop rail and the mobile sheet
-// trigger them, so the dialogs and hidden file inputs live here once.
+// Item kinds that need something from outside the canvas before they exist:
+// a URL, a new board record, or a file. Both the desktop rail and the mobile
+// sheet trigger them, so the dialog and the hidden file inputs live here once.
+//
+// Only Link still asks first — there's nothing sensible to put on the board
+// without a URL. Board and Bild create their item immediately (an untitled
+// board, an empty picture frame) and let the user fill it in afterwards, which
+// keeps a dialog out of the way of a drag-and-drop gesture.
 
-type Prompt = "link" | "board" | null;
+type Prompt = "link" | null;
 
 type Actions = {
   promptLink: (at?: Vec) => void;
-  promptBoard: (at?: Vec) => void;
+  createBoard: (at?: Vec) => void;
   pickImage: (at?: Vec) => void;
+  /** Attaches a picture to an existing (empty) image item — the double-click
+   *  path, as opposed to creating a new one. */
+  fillImage: (itemId: string) => void;
   pickFile: (at?: Vec) => void;
   busy: boolean;
 };
@@ -44,6 +52,7 @@ export function CanvasActionsProvider({
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const targetRef = useRef<Vec | null>(null);
+  const fillTargetRef = useRef<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,10 +71,46 @@ export function CanvasActionsProvider({
   };
 
   const promptLink = useCallback((at?: Vec) => open("link", at), []);
-  const promptBoard = useCallback((at?: Vec) => open("board", at), []);
 
-  const pickImage = useCallback((at?: Vec) => {
-    targetRef.current = at ?? null;
+  const createBoard = useCallback(
+    (at?: Vec) => {
+      targetRef.current = at ?? null;
+      const point = target();
+      // Place the card first with a provisional title so the drop lands
+      // somewhere visible, then swap in the real record once the server has
+      // created it. Renaming happens on the board itself.
+      const item = editor.createItem("board", point, { nodeId: "", title: "Neues Board" });
+      editor.setSelection([item.id]);
+      setBusy(true);
+      createNode(NodeType.BOARD, "Neues Board", boardId)
+        .then((node) => {
+          editor.store.transact(() =>
+            editor.store.updateProps(item.id, { nodeId: node.id, title: node.title } as never),
+          );
+          router.refresh();
+        })
+        .catch((error) => {
+          console.error("[board] could not create nested board", error);
+          editor.store.transact(() => editor.store.remove([item.id]));
+        })
+        .finally(() => setBusy(false));
+    },
+    [editor, boardId, router, target],
+  );
+
+  // A new picture starts as an empty frame on the board; double-clicking it
+  // opens the file dialog (see fillImage).
+  const pickImage = useCallback(
+    (at?: Vec) => {
+      targetRef.current = at ?? null;
+      const item = editor.createItem("image", target(), { src: "", alt: "" });
+      editor.setSelection([item.id]);
+    },
+    [editor, target],
+  );
+
+  const fillImage = useCallback((itemId: string) => {
+    fillTargetRef.current = itemId;
     imageInputRef.current?.click();
   }, []);
 
@@ -106,41 +151,29 @@ export function CanvasActionsProvider({
     }
   }
 
-  async function submitBoard(e: React.FormEvent) {
-    e.preventDefault();
-    const title = value.trim();
-    if (!title) return;
-    const at = target();
-    setBusy(true);
-    try {
-      const node = await createNode(NodeType.BOARD, title, boardId);
-      editor.createItem("board", at, { nodeId: node.id, title: node.title });
-      setPrompt(null);
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    const itemId = fillTargetRef.current;
+    fillTargetRef.current = null;
     e.target.value = "";
-    if (!file) return;
-    const at = target();
+    if (!file || !itemId) return;
+    const existing = editor.store.getItem(itemId);
+    if (!existing) return;
+
     setBusy(true);
     try {
       const { src } = await uploadRawFile(file);
       const size = await naturalSize(src);
-      const item = editor.createItem("image", at, { src, alt: file.name });
-      // Match the image's own aspect ratio instead of the generic default box.
-      if (size) {
-        const w = 320;
-        const h = Math.round((size.h / size.w) * w);
-        editor.store.transact(() =>
-          editor.store.update(item.id, { x: at.x - w / 2, y: at.y - h / 2, w, h }),
-        );
-      }
-      editor.setSelection([item.id]);
+      editor.store.transact(() => {
+        editor.store.updateProps(itemId, { src, alt: file.name } as never);
+        // Keep the frame centred while adopting the picture's aspect ratio,
+        // so the card doesn't jump away from where it was placed.
+        if (size) {
+          const w = existing.w;
+          const h = Math.round((size.h / size.w) * w);
+          editor.store.update(itemId, { y: existing.y + (existing.h - h) / 2, h });
+        }
+      });
     } finally {
       setBusy(false);
     }
@@ -161,7 +194,7 @@ export function CanvasActionsProvider({
   }
 
   return (
-    <ActionsContext.Provider value={{ promptLink, promptBoard, pickImage, pickFile, busy }}>
+    <ActionsContext.Provider value={{ promptLink, createBoard, pickImage, fillImage, pickFile, busy }}>
       {children}
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
@@ -173,18 +206,16 @@ export function CanvasActionsProvider({
           onPointerDown={(e) => e.target === e.currentTarget && setPrompt(null)}
         >
           <form
-            onSubmit={prompt === "link" ? submitLink : submitBoard}
+            onSubmit={submitLink}
             className="vos-panel vos-panel-shadow flex w-[min(420px,calc(100vw-32px))] flex-col gap-3 rounded-2xl p-4"
           >
-            <label className="text-[13px] font-medium text-[var(--vos-text)]">
-              {prompt === "link" ? "Link einfügen" : "Neues Board"}
-            </label>
+            <label className="text-[13px] font-medium text-[var(--vos-text)]">Link einfügen</label>
             <input
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setPrompt(null)}
-              placeholder={prompt === "link" ? "https://…" : "Board-Name"}
+              placeholder="https://…"
               className="h-10 rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
             />
             <div className="flex justify-end gap-2">
@@ -200,7 +231,7 @@ export function CanvasActionsProvider({
                 disabled={busy || !value.trim()}
                 className="h-9 rounded-lg bg-[var(--vos-text-strong)] px-3.5 text-[13px] font-semibold text-[var(--vos-bg)] disabled:opacity-40"
               >
-                {prompt === "link" ? "Einfügen" : "Erstellen"}
+                Einfügen
               </button>
             </div>
           </form>

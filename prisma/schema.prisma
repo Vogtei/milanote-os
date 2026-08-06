@@ -1,0 +1,172 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────
+// Auth.js (NextAuth v5) — standard Prisma adapter models
+// ─────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+
+  nodes    Node[]    @relation("NodeOwner")
+  comments Comment[] @relation("CommentAuthor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────
+// Core content model
+// ─────────────────────────────────────────────────────────
+
+enum NodeType {
+  FOLDER
+  BOARD
+}
+
+// Self-referential tree: a Node is either a FOLDER (pure container)
+// or a BOARD (has an associated BoardDoc). Both folders and boards
+// can be nested inside folders (and, per Milanote parity, boards can
+// later be nested inside boards — the self-relation already supports
+// that; no schema change needed for that future slice).
+model Node {
+  id    String   @id @default(cuid())
+  type  NodeType
+  title String
+
+  parentId String?
+  parent   Node?   @relation("NodeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Node[]  @relation("NodeTree")
+
+  ownerId String
+  owner   User   @relation("NodeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  boardDoc   BoardDoc?
+  shareLinks ShareLink[]
+  comments   Comment[]
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([parentId])
+  @@index([ownerId])
+  @@index([deletedAt])
+}
+
+// Holds the serialized Yjs/tldraw document state for a BOARD-type Node.
+// One-to-one. `state` is nullable because a freshly-created board has
+// no persisted doc yet — realtime sync is a future slice, nothing
+// writes to this column yet.
+model BoardDoc {
+  id     String @id @default(cuid())
+  nodeId String @unique
+  node   Node   @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  state Bytes?
+
+  updatedAt DateTime @updatedAt
+}
+
+enum ShareRole {
+  VIEW
+  COMMENT
+  EDIT
+}
+
+model ShareLink {
+  id    String @id @default(cuid())
+  token String @unique @default(cuid())
+
+  nodeId String
+  node   Node   @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  role      ShareRole
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([nodeId])
+}
+
+model Comment {
+  id String @id @default(cuid())
+
+  boardId String
+  board   Node   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  // Anchor position on the canvas. x/y for free-floating pins today;
+  // shapeId lets a future slice anchor a comment to a specific tldraw
+  // shape instead of raw coordinates.
+  x       Float?
+  y       Float?
+  shapeId String?
+
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([boardId])
+}
+
+model LinkPreview {
+  id          String   @id @default(cuid())
+  url         String   @unique
+  title       String?
+  image       String?
+  description String?
+  fetchedAt   DateTime @default(now())
+}

@@ -29,6 +29,10 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
+  const dprRef = useRef(1);
+  // Set by the paint effect so the resize handler can ask for a frame; the
+  // two effects can't share a closure and the sizing one runs first.
+  const repaintRef = useRef<(() => void) | null>(null);
   const { theme } = useTheme();
   const [, forceRender] = useState(0);
 
@@ -48,7 +52,9 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
       const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) return;
       const size = editor.getSize();
+      if (size.w === 0 || size.h === 0) return;
       render(ctx, {
+        dpr: dprRef.current,
         camera: editor.getCamera(),
         size,
         items: editor.store.getItems(),
@@ -66,6 +72,7 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
       if (frameRef.current === null) frameRef.current = requestAnimationFrame(paint);
     };
 
+    repaintRef.current = schedule;
     schedule();
     const unsubscribe = editor.subscribe((event) => {
       schedule();
@@ -75,7 +82,15 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
     });
     return () => {
       unsubscribe();
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      repaintRef.current = null;
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        // Clearing the handle is the whole point: schedule() treats a non-null
+        // frameRef as "a frame is already queued". Leaving a cancelled id in
+        // there wedges the loop permanently — which is exactly what happened
+        // under StrictMode's mount/unmount/remount.
+        frameRef.current = null;
+      }
     };
   }, [editor, theme]);
 
@@ -89,14 +104,22 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
     const apply = () => {
       const rect = container.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      const ctx = canvas.getContext("2d");
-      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const width = Math.max(1, Math.round(rect.width * dpr));
+      const height = Math.max(1, Math.round(rect.height * dpr));
+
+      // Assigning width/height blanks the bitmap even when the value is
+      // unchanged — and ResizeObserver fires once on observe(), i.e. right
+      // after the first paint. Guarding the assignment is what stops that
+      // initial callback from wiping the board.
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+      }
+      dprRef.current = dpr;
       editor.setSize({ w: rect.width, h: rect.height });
-      forceRender((n) => n + 1);
+      repaintRef.current?.();
     };
 
     apply();
@@ -121,7 +144,31 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
+    // Touch: one finger drives the normal pointer path, two fingers become a
+    // pinch. The gesture that was already in progress is cancelled when the
+    // second finger lands, otherwise a pinch would also drag whatever the
+    // first finger happened to touch.
+    const touches = new Map<number, { x: number; y: number }>();
+    let gesture: { distance: number; center: { x: number; y: number } } | null = null;
+
+    const gestureState = () => {
+      const [a, b] = [...touches.values()];
+      return {
+        distance: Math.hypot(a.x - b.x, a.y - b.y),
+        center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      };
+    };
+
     const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        touches.set(e.pointerId, toLocal(e));
+        if (touches.size === 2) {
+          editor.cancelInteraction();
+          gesture = gestureState();
+          return;
+        }
+        if (touches.size > 2) return;
+      }
       if (e.button !== 0 && e.button !== 1) return;
       canvas.setPointerCapture(e.pointerId);
       editor.onPointerDown(toLocal(e), {
@@ -130,8 +177,30 @@ export function VosCanvas({ editor }: { editor: BoardEditor }) {
         alt: e.altKey,
       });
     };
-    const onPointerMove = (e: PointerEvent) => editor.onPointerMove(toLocal(e));
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch" && touches.has(e.pointerId)) {
+        touches.set(e.pointerId, toLocal(e));
+        if (touches.size === 2 && gesture) {
+          const next = gestureState();
+          const factor = gesture.distance === 0 ? 1 : next.distance / gesture.distance;
+          editor.pinch(next.center, factor, {
+            x: next.center.x - gesture.center.x,
+            y: next.center.y - gesture.center.y,
+          });
+          gesture = next;
+          return;
+        }
+      }
+      if (touches.size >= 2) return;
+      editor.onPointerMove(toLocal(e));
+    };
+
     const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        touches.delete(e.pointerId);
+        if (touches.size < 2) gesture = null;
+      }
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
       editor.onPointerUp();
     };

@@ -54,7 +54,7 @@ export function CommentsPanel({
       {!hideTrigger && (
         <button
           onClick={() => setOpen(!open)}
-          className="rounded-md border border-[rgb(58,59,65)] px-2.5 py-1 text-xs font-medium text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
+          className="rounded-md border border-[var(--vos-border)] px-2.5 py-1 text-xs font-medium text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
         >
           Kommentare
         </button>
@@ -64,46 +64,46 @@ export function CommentsPanel({
         <div
           className={
             hideTrigger
-              ? "fixed right-3 top-16 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[rgb(58,59,65)] bg-[#202127] shadow-lg"
-              : "absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[rgb(58,59,65)] bg-[#202127] shadow-lg"
+              ? "fixed right-3 top-16 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[var(--vos-border)] bg-[var(--vos-panel-solid)] shadow-lg"
+              : "absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[var(--vos-border)] bg-[var(--vos-panel-solid)] shadow-lg"
           }
         >
           <ul className="flex-1 overflow-y-auto p-3">
-            {comments === null && <li className="text-xs text-[rgb(120,118,112)]">Lädt…</li>}
+            {comments === null && <li className="text-xs text-[var(--vos-faint)]">Lädt…</li>}
             {comments?.length === 0 && (
-              <li className="text-xs text-[rgb(120,118,112)]">Noch keine Kommentare.</li>
+              <li className="text-xs text-[var(--vos-faint)]">Noch keine Kommentare.</li>
             )}
             {comments?.map((c) => (
               <li key={c.id} className="mb-3 text-xs">
-                <div className="font-medium text-[rgb(244,243,239)]">
+                <div className="font-medium text-[var(--vos-text-strong)]">
                   {c.author.name || c.author.email}
                 </div>
-                <div className="text-[rgb(156,153,143)]">{c.text}</div>
+                <div className="text-[var(--vos-muted)]">{c.text}</div>
               </li>
             ))}
           </ul>
           {canPost ? (
             <form
               onSubmit={submit}
-              className="flex gap-1.5 border-t border-[rgb(58,59,65)] p-2"
+              className="flex gap-1.5 border-t border-[var(--vos-border)] p-2"
             >
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Kommentar schreiben…"
                 disabled={isPending}
-                className="flex-1 rounded border border-[rgb(58,59,65)] bg-[#17181c] px-2 py-1 text-xs text-[rgb(231,229,224)] outline-none"
+                className="flex-1 rounded border border-[var(--vos-border)] bg-[var(--vos-bg)] px-2 py-1 text-xs text-[var(--vos-text)] outline-none"
               />
               <button
                 type="submit"
                 disabled={isPending || !text.trim()}
-                className="rounded bg-[rgb(244,243,239)] px-2 py-1 text-xs font-medium text-[#17181c] disabled:opacity-40"
+                className="rounded bg-[var(--vos-text-strong)] px-2 py-1 text-xs font-medium text-[var(--vos-bg)] disabled:opacity-40"
               >
                 Senden
               </button>
             </form>
           ) : (
-            <div className="border-t border-[rgb(58,59,65)] p-2 text-center text-xs text-[rgb(120,118,112)]">
+            <div className="border-t border-[var(--vos-border)] p-2 text-center text-xs text-[var(--vos-faint)]">
               Nur Ansicht — kein Kommentieren erlaubt
             </div>
           )}

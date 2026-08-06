@@ -68,7 +68,7 @@ export function ShareDialog({ nodeId }: { nodeId: string }) {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as Link["role"])}
-              className="flex-1 rounded border border-[rgb(58,59,65)] bg-[#17181c] px-2 py-1 text-xs text-[rgb(231,229,224)]"
+              className="flex-1 rounded border border-[var(--vos-border)] bg-[var(--vos-bg)] px-2 py-1 text-xs text-[var(--vos-text)]"
             >
               <option value="VIEW">Nur ansehen</option>
               <option value="COMMENT">Kommentieren</option>
@@ -77,34 +77,34 @@ export function ShareDialog({ nodeId }: { nodeId: string }) {
             <button
               onClick={handleCreate}
               disabled={isPending}
-              className="rounded bg-[rgb(244,243,239)] px-2.5 py-1 text-xs font-medium text-[#17181c] disabled:opacity-40"
+              className="rounded bg-[var(--vos-text-strong)] px-2.5 py-1 text-xs font-medium text-[var(--vos-bg)] disabled:opacity-40"
             >
               Link erstellen
             </button>
           </div>
 
           <ul className="mt-3 flex flex-col gap-1.5">
-            {links === null && <li className="text-xs text-[rgb(120,118,112)]">Lädt…</li>}
+            {links === null && <li className="text-xs text-[var(--vos-faint)]">Lädt…</li>}
             {links?.length === 0 && (
-              <li className="text-xs text-[rgb(120,118,112)]">Noch keine Links.</li>
+              <li className="text-xs text-[var(--vos-faint)]">Noch keine Links.</li>
             )}
             {links?.map((link) => (
               <li
                 key={link.id}
-                className="flex items-center gap-2 rounded border border-[rgb(58,59,65)] px-2 py-1.5 text-xs"
+                className="flex items-center gap-2 rounded border border-[var(--vos-border)] px-2 py-1.5 text-xs"
               >
-                <span className="flex-1 text-[rgb(200,198,192)]">
+                <span className="flex-1 text-[var(--vos-text)]">
                   {roleLabel[link.role]}
                 </span>
                 <button
                   onClick={() => copyLink(link.token, link.id)}
-                  className="text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)]"
+                  className="text-[var(--vos-muted)] hover:text-[var(--vos-text-strong)]"
                 >
                   {copiedId === link.id ? "Kopiert" : "Kopieren"}
                 </button>
                 <button
                   onClick={() => handleRevoke(link.id)}
-                  className="text-[rgb(120,118,112)] hover:text-red-400"
+                  className="text-[var(--vos-faint)] hover:text-red-400"
                 >
                   Widerrufen
                 </button>

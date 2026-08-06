@@ -8,5 +8,5 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
   if (!session?.user) redirect("/signin");
 
-  return <div className="relative h-dvh overflow-hidden bg-[#17181c]">{children}</div>;
+  return <div className="relative h-dvh overflow-hidden bg-[var(--vos-bg)]">{children}</div>;
 }

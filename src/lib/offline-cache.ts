@@ -1,6 +1,6 @@
 // Local-only safety net for board state — lets a board keep working (and
-// reload cleanly) while genuinely offline. Independent of tldraw's own
-// in-memory push buffering, which doesn't survive a page reload.
+// reload cleanly) while genuinely offline. Payload-agnostic on purpose: it
+// stores whatever the caller hands it, currently a board Doc.
 const DB_NAME = "milanote-offline";
 const STORE_NAME = "board-snapshots";
 

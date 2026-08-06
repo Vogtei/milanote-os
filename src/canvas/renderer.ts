@@ -6,6 +6,9 @@ import { ellipsize, font, wrapText } from "@/canvas/text";
 import { coverRect, getImage } from "@/canvas/images";
 
 export type RenderState = {
+  /** Device pixel ratio. render() resets the transform, so the backing-store
+   *  scale has to be re-applied here rather than set once at resize time. */
+  dpr: number;
   camera: Camera;
   /** Viewport size in CSS pixels. */
   size: { w: number; h: number };
@@ -29,7 +32,7 @@ export function render(ctx: CanvasRenderingContext2D, state: RenderState) {
   const { camera, size, palette } = state;
 
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, size.w, size.h);
 
@@ -483,7 +486,7 @@ function drawMarquee(ctx: CanvasRenderingContext2D, state: RenderState) {
   const { marquee, palette } = state;
   if (!marquee) return;
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   ctx.fillStyle = palette.marqueeFill;
   ctx.strokeStyle = palette.marquee;
   ctx.lineWidth = 1;

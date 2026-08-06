@@ -26,14 +26,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<Preference>("dark");
   const [theme, setTheme] = useState<ThemeName>("dark");
 
-  // Read the stored preference after mount rather than during render: the
-  // server has no localStorage, and reading it in a lazy initialiser would
-  // produce a hydration mismatch on the very first paint.
+  // Adopt whatever the pre-paint bootstrap script in the root layout already
+  // put on <html>, rather than reading localStorage again. Deferring to the
+  // next frame keeps the state update out of the effect body — reading it
+  // during render would mismatch the server, which has no localStorage.
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Preference | null;
-    const initial: Preference = stored ?? "dark";
-    setPreferenceState(initial);
-    setTheme(initial === "system" ? systemTheme() : initial);
+    const id = requestAnimationFrame(() => {
+      const stored = window.localStorage.getItem(STORAGE_KEY) as Preference | null;
+      const initial: Preference = stored ?? "dark";
+      setPreferenceState(initial);
+      setTheme(initial === "system" ? systemTheme() : initial);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   useEffect(() => {
@@ -46,7 +50,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   const setPreference = useCallback((next: Preference) => {

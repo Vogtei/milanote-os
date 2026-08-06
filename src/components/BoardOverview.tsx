@@ -70,14 +70,14 @@ export function BoardOverview({ email }: { email: string }) {
         <Crumb label="Übersicht" />
         <TopBarSpacer />
         <div className="relative mr-1 hidden sm:block">
-          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[rgb(120,118,112)]">
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--vos-faint)]">
             <SearchIcon size={16} />
           </span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Boards durchsuchen…"
-            className="h-[34px] w-52 rounded-lg border border-[rgb(58,59,65)] bg-[#17181c] pl-7 pr-2 text-[13px] text-[rgb(231,229,224)] outline-none placeholder:text-[rgb(120,118,112)] focus:border-[rgb(120,118,112)]"
+            className="h-[34px] w-52 rounded-lg border border-[var(--vos-border)] bg-[var(--vos-bg)] pl-7 pr-2 text-[13px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-faint)]"
           />
         </div>
         <div className="relative">
@@ -90,24 +90,24 @@ export function BoardOverview({ email }: { email: string }) {
 
       <div className="mx-auto max-w-5xl px-6 pb-16 pt-[84px]">
         {boards === null ? (
-          <p className="text-sm text-[rgb(120,118,112)]">Lädt…</p>
+          <p className="text-sm text-[var(--vos-faint)]">Lädt…</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
             {visible.map((board) => (
               <div key={board.id} className="group relative">
                 <Link
                   href={`/board/${board.id}`}
-                  className="flex h-32 flex-col justify-between rounded-xl border border-[rgb(58,59,65)] bg-[rgb(35,36,40)] p-3.5 text-[rgb(156,153,143)] transition-colors hover:border-[rgb(90,91,97)] hover:bg-[rgba(255,255,255,0.045)]"
+                  className="flex h-32 flex-col justify-between rounded-xl border border-[var(--vos-border)] bg-[var(--vos-panel-solid)] p-3.5 text-[var(--vos-muted)] transition-colors hover:border-[var(--vos-faint)] hover:bg-[var(--vos-hover-soft)]"
                 >
                   <BoardIcon size={22} />
-                  <span className="truncate text-sm font-medium text-[rgb(244,243,239)]">
+                  <span className="truncate text-sm font-medium text-[var(--vos-text-strong)]">
                     {board.title}
                   </span>
                 </Link>
                 <button
                   onClick={() => handleDelete(board)}
                   aria-label={`${board.title} löschen`}
-                  className="absolute right-2 top-2 hidden rounded-md p-1.5 text-[rgb(120,118,112)] hover:bg-[rgba(255,255,255,0.06)] hover:text-red-400 group-hover:block"
+                  className="absolute right-2 top-2 hidden rounded-md p-1.5 text-[var(--vos-faint)] hover:bg-[var(--vos-hover-soft)] hover:text-red-400 group-hover:block"
                 >
                   <TrashIcon size={16} />
                 </button>
@@ -117,7 +117,7 @@ export function BoardOverview({ email }: { email: string }) {
             {creating ? (
               <form
                 onSubmit={handleCreate}
-                className="flex h-32 flex-col justify-end rounded-xl border border-[rgb(90,91,97)] bg-[rgb(35,36,40)] p-3.5"
+                className="flex h-32 flex-col justify-end rounded-xl border border-[var(--vos-faint)] bg-[var(--vos-panel-solid)] p-3.5"
               >
                 <input
                   autoFocus
@@ -127,13 +127,13 @@ export function BoardOverview({ email }: { email: string }) {
                   onKeyDown={(e) => e.key === "Escape" && setCreating(false)}
                   placeholder="Board-Name"
                   disabled={isPending}
-                  className="w-full rounded-lg border border-[rgb(58,59,65)] bg-[#17181c] px-2 py-1.5 text-sm text-[rgb(231,229,224)] outline-none placeholder:text-[rgb(120,118,112)] focus:border-[rgb(120,118,112)]"
+                  className="w-full rounded-lg border border-[var(--vos-border)] bg-[var(--vos-bg)] px-2 py-1.5 text-sm text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-faint)]"
                 />
               </form>
             ) : (
               <button
                 onClick={() => setCreating(true)}
-                className="flex h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[rgb(58,59,65)] text-[rgb(120,118,112)] hover:border-[rgb(90,91,97)] hover:text-[rgb(244,243,239)]"
+                className="flex h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--vos-border)] text-[var(--vos-faint)] hover:border-[var(--vos-faint)] hover:text-[var(--vos-text-strong)]"
               >
                 <PlusIcon size={22} />
                 <span className="text-sm">Neues Board</span>
@@ -162,16 +162,16 @@ function AccountMenu({ email, onClose }: { email: string; onClose: () => void })
       ref={ref}
       className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-60 flex-col rounded-xl p-1.5"
     >
-      <span className="truncate px-2 py-1.5 text-xs text-[rgb(120,118,112)]">{email}</span>
+      <span className="truncate px-2 py-1.5 text-xs text-[var(--vos-faint)]">{email}</span>
       <Link
         href="/trash"
-        className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
+        className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
       >
         <TrashIcon /> Papierkorb
       </Link>
-      <span className="my-1 h-px bg-[rgb(58,59,65)]" />
+      <span className="my-1 h-px bg-[var(--vos-border)]" />
       <form action={signOutAction}>
-        <button className="w-full rounded-lg px-2 py-2 text-left text-[13px] text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]">
+        <button className="w-full rounded-lg px-2 py-2 text-left text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]">
           Abmelden
         </button>
       </form>

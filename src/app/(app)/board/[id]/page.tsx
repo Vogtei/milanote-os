@@ -4,7 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveBoardAccess } from "@/lib/access-core";
 import { getNode } from "@/lib/nodes";
-import { BoardCanvas } from "@/components/BoardCanvas";
+import { loadBoardDoc } from "@/lib/board-doc";
+import { BoardShell } from "@/components/canvas/BoardShell";
 import { ShareDialog } from "@/components/ShareDialog";
 
 export default async function BoardPage(props: PageProps<"/board/[id]">) {
@@ -25,22 +26,21 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
 
   const { node, role } = access;
   const parent = node.parentId ? await getNode(node.parentId) : null;
-  const backHref = parent?.type === "BOARD" ? `/board/${parent.id}` : "/";
-  const backLabel = parent ? parent.title : "Übersicht";
+  const doc = await loadBoardDoc(id);
 
-  // Full-bleed canvas: every piece of chrome (breadcrumbs, actions, tool rail,
-  // zoom) floats over it as its own panel, so the board itself never gets
-  // squeezed by a header or a sidebar.
+  // Full-bleed canvas: breadcrumbs, tools, zoom and selection controls all
+  // float over it as their own panels, so the board is never squeezed by a
+  // header or a sidebar.
   return (
-    <BoardCanvas
-      id={id}
+    <BoardShell
+      boardId={id}
+      initialDoc={doc}
       readonly={role === "VIEW" || role === "COMMENT"}
       canComment={role !== "VIEW"}
-      userName={session.user.name || session.user.email || undefined}
       chrome={{
         title: node.title,
-        parentHref: backHref,
-        parentLabel: backLabel,
+        parentHref: parent?.type === "BOARD" ? `/board/${parent.id}` : "/",
+        parentLabel: parent ? parent.title : "Übersicht",
         roleLabel:
           role === "OWNER"
             ? null

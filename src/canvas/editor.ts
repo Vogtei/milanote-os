@@ -134,7 +134,12 @@ export class BoardEditor {
   }
 
   setSize(size: { w: number; h: number }) {
+    if (this.size.w === size.w && this.size.h === size.h) return;
     this.size = size;
+    // Resizing the element reallocates (and blanks) the canvas bitmap, so this
+    // has to announce itself — otherwise the board goes blank on every resize
+    // until something else happens to trigger a repaint.
+    this.changed();
   }
 
   setTool(tool: ToolId) {
@@ -564,6 +569,27 @@ export class BoardEditor {
 
   setSpaceDown(down: boolean) {
     this.spaceDown = down;
+  }
+
+  /**
+   * Two-finger gesture: zoom about the pinch midpoint and pan by how far that
+   * midpoint moved, applied together so the board tracks the fingers instead
+   * of drifting.
+   */
+  pinch(anchor: Vec, factor: number, pan: Vec) {
+    this.setCamera(panBy(zoomAround(this.camera, anchor, factor), { x: -pan.x, y: -pan.y }));
+  }
+
+  /** Aborts whatever the pointer was doing — used when a second finger lands
+   *  and the gesture turns out to be a pinch, not a drag. */
+  cancelInteraction() {
+    if (this.interaction.kind === "none") return;
+    if (this.interaction.kind === "draw" || this.interaction.kind === "arrow" || this.interaction.kind === "createShape") {
+      const id = this.interaction.id;
+      this.store.transact(() => this.store.remove([id]));
+    }
+    this.interaction = { kind: "none" };
+    this.changed();
   }
 
   // -------------------------------------------------------------- commands

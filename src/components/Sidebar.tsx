@@ -20,7 +20,7 @@ function NewBoardForm({ onCreated }: { onCreated: () => void }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="pl-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+        className="pl-1 text-xs text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)]"
       >
         + Board
       </button>
@@ -47,7 +47,7 @@ function NewBoardForm({ onCreated }: { onCreated: () => void }) {
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => !title && setOpen(false)}
         placeholder="Board-Name"
-        className="w-full rounded border border-zinc-300 px-1.5 py-0.5 text-xs outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-50"
+        className="w-full rounded border border-[rgb(58,59,65)] bg-[#17181c] px-1.5 py-0.5 text-xs text-[rgb(231,229,224)] outline-none focus:border-[rgb(156,153,143)]"
         disabled={isPending}
       />
     </form>
@@ -76,15 +76,15 @@ function NodeRow({ node, onChanged }: { node: Node; onChanged: () => void }) {
         href={`/board/${node.id}`}
         className={`group flex items-center gap-1.5 rounded px-1.5 py-1 text-sm ${
           active
-            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-            : "text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            ? "bg-[rgba(255,255,255,0.118)] text-[rgb(244,243,239)]"
+            : "text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
         }`}
       >
         <span className="shrink-0">🗒️</span>
         <span className="truncate">{node.title}</span>
         <button
           onClick={handleDelete}
-          className="ml-auto hidden shrink-0 text-zinc-400 hover:text-red-600 group-hover:inline"
+          className="ml-auto hidden shrink-0 text-[rgb(120,118,112)] hover:text-red-400 group-hover:inline"
           aria-label="Löschen"
         >
           ✕
@@ -133,30 +133,30 @@ export function Sidebar() {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-[490] bg-black/30 md:hidden"
+          className="fixed inset-0 z-[490] bg-black/50 md:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-[495] flex h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform duration-200 md:static md:z-auto md:translate-x-0 dark:border-zinc-800 dark:bg-zinc-950 ${
+        className={`fixed inset-y-0 left-0 z-[495] flex h-full w-64 shrink-0 flex-col border-r border-[rgb(58,59,65)] bg-[#17181c] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between px-3 py-3">
-          <Link href="/" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          <Link href="/" className="text-sm font-semibold text-[rgb(244,243,239)]">
             milanote-os
           </Link>
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Menü schließen"
-            className="text-zinc-400 hover:text-zinc-900 md:hidden dark:hover:text-zinc-100"
+            className="text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)] md:hidden"
           >
             ✕
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2">
           <ul>
-            {roots === null && <li className="px-2 py-1 text-xs text-zinc-400">Lädt…</li>}
+            {roots === null && <li className="px-2 py-1 text-xs text-[rgb(120,118,112)]">Lädt…</li>}
             {roots?.map((node) => (
               <NodeRow key={node.id} node={node} onChanged={reload} />
             ))}
@@ -165,10 +165,10 @@ export function Sidebar() {
             <NewBoardForm onCreated={reload} />
           </div>
         </nav>
-        <div className="border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
+        <div className="border-t border-[rgb(58,59,65)] px-3 py-2">
           <Link
             href="/trash"
-            className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="text-xs text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)]"
           >
             🗑️ Papierkorb
           </Link>

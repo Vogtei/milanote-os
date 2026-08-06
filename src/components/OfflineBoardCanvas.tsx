@@ -43,6 +43,7 @@ export function OfflineBoardCanvas({
 
   function handleMount(editor: Editor) {
     editorRef.current = editor;
+    editor.user.updateUserPreferences({ colorScheme: "dark" });
     const interval = setInterval(() => {
       saveSnapshot(id, editor.getSnapshot());
     }, AUTOSAVE_MS);
@@ -58,7 +59,7 @@ export function OfflineBoardCanvas({
         </span>
         <button
           onClick={onTryReconnect}
-          className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
         >
           Jetzt synchronisieren
         </button>

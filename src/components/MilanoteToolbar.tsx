@@ -132,14 +132,14 @@ export function MilanoteToolbar() {
         width: 76,
         zIndex: 300,
         pointerEvents: "all",
-        background: "#fff",
-        borderRight: "1px solid #e4e4e7",
+        background: "rgba(34,35,40,0.84)",
+        borderRight: "1px solid rgb(58,59,65)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         paddingTop: 12,
         paddingBottom: 12,
-        gap: 6,
+        gap: 2,
         overflowY: "auto",
       }}
     >
@@ -163,11 +163,11 @@ export function MilanoteToolbar() {
               zIndex: 400,
               display: "flex",
               gap: 4,
-              background: "#fff",
-              border: "1px solid #e4e4e7",
+              background: "#202127",
+              border: "1px solid rgb(58,59,65)",
               borderRadius: 6,
               padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
             }}
           >
             <input
@@ -176,7 +176,16 @@ export function MilanoteToolbar() {
               onChange={(e) => setLinkValue(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setLinkOpen(false)}
               placeholder="https://…"
-              style={{ width: 200, fontSize: 12, padding: "5px 7px", border: "1px solid #e4e4e7", borderRadius: 4, outline: "none" }}
+              style={{
+                width: 200,
+                fontSize: 12,
+                padding: "5px 7px",
+                border: "1px solid rgb(58,59,65)",
+                borderRadius: 4,
+                outline: "none",
+                background: "#17181c",
+                color: "rgb(231,229,224)",
+              }}
             />
             <button
               type="submit"
@@ -209,11 +218,11 @@ export function MilanoteToolbar() {
               zIndex: 400,
               display: "flex",
               gap: 4,
-              background: "#fff",
-              border: "1px solid #e4e4e7",
+              background: "#202127",
+              border: "1px solid rgb(58,59,65)",
               borderRadius: 6,
               padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
             }}
           >
             <input
@@ -223,7 +232,16 @@ export function MilanoteToolbar() {
               onKeyDown={(e) => e.key === "Escape" && setBoardOpen(false)}
               placeholder="Board-Name"
               disabled={boardPending}
-              style={{ width: 160, fontSize: 12, padding: "5px 7px", border: "1px solid #e4e4e7", borderRadius: 4, outline: "none" }}
+              style={{
+                width: 160,
+                fontSize: 12,
+                padding: "5px 7px",
+                border: "1px solid rgb(58,59,65)",
+                borderRadius: 4,
+                outline: "none",
+                background: "#17181c",
+                color: "rgb(231,229,224)",
+              }}
             />
             <button
               type="submit"
@@ -256,11 +274,11 @@ export function MilanoteToolbar() {
               zIndex: 400,
               display: "flex",
               flexDirection: "column",
-              background: "#fff",
-              border: "1px solid #e4e4e7",
+              background: "#202127",
+              border: "1px solid rgb(58,59,65)",
               borderRadius: 6,
               padding: 4,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
               minWidth: 130,
             }}
           >
@@ -276,10 +294,10 @@ export function MilanoteToolbar() {
                   fontSize: 12,
                   padding: "6px 8px",
                   border: "none",
-                  background: activeToolId === t.id ? "#eef2ff" : "transparent",
+                  background: activeToolId === t.id ? "rgba(255,255,255,0.118)" : "transparent",
                   borderRadius: 4,
                   cursor: "pointer",
-                  color: "#27272a",
+                  color: activeToolId === t.id ? "rgb(244,243,239)" : "rgb(156,153,143)",
                 }}
               >
                 {t.label}
@@ -289,7 +307,7 @@ export function MilanoteToolbar() {
         )}
       </div>
 
-      <div style={{ width: 44, borderTop: "1px solid #e4e4e7", margin: "4px 0" }} />
+      <div style={{ width: 44, borderTop: "1px solid rgb(58,59,65)", margin: "4px 0" }} />
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImagePick} />
       <RailButton icon={<ImageIcon />} label="Add image" dragToolId="asset" onClick={() => imageInputRef.current?.click()} />
@@ -344,12 +362,15 @@ function RailButton({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         gap: 3,
-        width: 56,
+        width: 60,
         border: "none",
-        background: "transparent",
+        borderRadius: 6,
+        background: active ? "rgba(255,255,255,0.118)" : "transparent",
+        color: active ? "rgb(244,243,239)" : "rgb(156,153,143)",
         cursor: dragToolId ? "grab" : "pointer",
-        padding: "4px 0",
+        padding: "8px 0 6px",
       }}
     >
       <span
@@ -357,18 +378,14 @@ function RailButton({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 36,
-          height: 36,
-          borderRadius: 8,
-          background: active ? "#4f6ef7" : "#fff",
-          border: active ? "1px solid #4f6ef7" : "1px solid #e4e4e7",
-          color: active ? "#fff" : "#3f3f46",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+          width: 20,
+          height: 20,
+          color: "inherit",
         }}
       >
         {icon}
       </span>
-      {label && <span style={{ fontSize: 10, color: "#71717a", lineHeight: 1 }}>{label}</span>}
+      {label && <span style={{ fontSize: 10, color: "inherit", lineHeight: 1 }}>{label}</span>}
     </button>
   );
 }

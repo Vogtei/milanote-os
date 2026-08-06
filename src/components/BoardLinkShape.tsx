@@ -56,8 +56,8 @@ function BoardLinkCard({ shape }: { shape: BoardLinkShape }) {
         style={{
           width: shape.props.w,
           height: shape.props.h,
-          background: "white",
-          border: "1px solid #d4d4d8",
+          background: "#26272d",
+          border: "1px solid rgb(58,59,65)",
           borderRadius: 6,
           display: "flex",
           flexDirection: "column",
@@ -65,14 +65,14 @@ function BoardLinkCard({ shape }: { shape: BoardLinkShape }) {
           justifyContent: "center",
           gap: 6,
           fontFamily: "sans-serif",
-          color: "#27272a",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          color: "rgb(244,243,239)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
           userSelect: "none",
         }}
       >
         <span style={{ fontSize: 22 }}>🗒️</span>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{shape.props.title}</span>
-        <span style={{ fontSize: 10, fontWeight: 400, color: "#71717a" }}>
+        <span style={{ fontSize: 10, fontWeight: 400, color: "rgb(156,153,143)" }}>
           Doppelklick zum Öffnen
         </span>
       </div>

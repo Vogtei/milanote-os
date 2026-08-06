@@ -108,6 +108,10 @@ function SyncedBoardCanvas({
     setEditor(editor);
     if (readonly) editor.updateInstanceState({ isReadonly: true });
     if (userName) editor.user.updateUserPreferences({ name: userName });
+    // Dark theme throughout the app (VisualOS-inspired look) — tldraw's own
+    // colorScheme covers canvas background/grid/default-shape chrome for
+    // free, no need to hand-roll canvas styling that would fight it.
+    editor.user.updateUserPreferences({ colorScheme: "dark" });
 
     // Pasting or dropping a URL onto the canvas normally creates a bookmark
     // via tldraw's own (external) unfurl service. Override it with our
@@ -332,14 +336,14 @@ function SyncedBoardCanvas({
             {onGoOffline && (
               <button
                 onClick={onGoOffline}
-                className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
               >
                 Offline arbeiten
               </button>
             )}
             <button
               onClick={exportBoard}
-              className="rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="rounded-md border border-[rgb(58,59,65)] bg-[#202127] px-2.5 py-1.5 text-xs font-medium text-[rgb(156,153,143)] shadow-sm hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
             >
               Exportieren
             </button>

@@ -9,7 +9,7 @@ export function SidebarToggle() {
     <button
       onClick={() => window.dispatchEvent(new CustomEvent("toggle-sidebar"))}
       aria-label="Menü öffnen"
-      className="-ml-1 mr-auto text-lg text-zinc-500 hover:text-zinc-900 md:hidden dark:hover:text-zinc-100"
+      className="-ml-1 mr-auto text-lg text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)] md:hidden"
     >
       ☰
     </button>

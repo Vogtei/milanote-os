@@ -54,7 +54,7 @@ export function CommentsPanel({
       {!hideTrigger && (
         <button
           onClick={() => setOpen(!open)}
-          className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="rounded-md border border-[rgb(58,59,65)] px-2.5 py-1 text-xs font-medium text-[rgb(156,153,143)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[rgb(244,243,239)]"
         >
           Kommentare
         </button>
@@ -64,46 +64,46 @@ export function CommentsPanel({
         <div
           className={
             hideTrigger
-              ? "fixed right-3 top-16 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-              : "absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+              ? "fixed right-3 top-16 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[rgb(58,59,65)] bg-[#202127] shadow-lg"
+              : "absolute right-0 top-8 z-[400] flex max-h-96 w-80 flex-col rounded-md border border-[rgb(58,59,65)] bg-[#202127] shadow-lg"
           }
         >
           <ul className="flex-1 overflow-y-auto p-3">
-            {comments === null && <li className="text-xs text-zinc-400">Lädt…</li>}
+            {comments === null && <li className="text-xs text-[rgb(120,118,112)]">Lädt…</li>}
             {comments?.length === 0 && (
-              <li className="text-xs text-zinc-400">Noch keine Kommentare.</li>
+              <li className="text-xs text-[rgb(120,118,112)]">Noch keine Kommentare.</li>
             )}
             {comments?.map((c) => (
               <li key={c.id} className="mb-3 text-xs">
-                <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                <div className="font-medium text-[rgb(244,243,239)]">
                   {c.author.name || c.author.email}
                 </div>
-                <div className="text-zinc-600 dark:text-zinc-400">{c.text}</div>
+                <div className="text-[rgb(156,153,143)]">{c.text}</div>
               </li>
             ))}
           </ul>
           {canPost ? (
             <form
               onSubmit={submit}
-              className="flex gap-1.5 border-t border-zinc-200 p-2 dark:border-zinc-800"
+              className="flex gap-1.5 border-t border-[rgb(58,59,65)] p-2"
             >
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Kommentar schreiben…"
                 disabled={isPending}
-                className="flex-1 rounded border border-zinc-300 px-2 py-1 text-xs outline-none dark:border-zinc-700 dark:bg-zinc-900"
+                className="flex-1 rounded border border-[rgb(58,59,65)] bg-[#17181c] px-2 py-1 text-xs text-[rgb(231,229,224)] outline-none"
               />
               <button
                 type="submit"
                 disabled={isPending || !text.trim()}
-                className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+                className="rounded bg-[rgb(244,243,239)] px-2 py-1 text-xs font-medium text-[#17181c] disabled:opacity-40"
               >
                 Senden
               </button>
             </form>
           ) : (
-            <div className="border-t border-zinc-200 p-2 text-center text-xs text-zinc-400 dark:border-zinc-800">
+            <div className="border-t border-[rgb(58,59,65)] p-2 text-center text-xs text-[rgb(120,118,112)]">
               Nur Ansicht — kein Kommentieren erlaubt
             </div>
           )}

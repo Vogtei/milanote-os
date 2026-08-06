@@ -79,7 +79,7 @@ function TodoCard({ shape }: { shape: TodoShape }) {
           display: "flex",
           flexDirection: "column",
           padding: 10,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
           fontFamily: "sans-serif",
           overflow: "hidden",
         }}

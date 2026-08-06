@@ -31,24 +31,24 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-1.5 text-xs dark:border-zinc-800">
-        <span className="h-3 w-3 flex-shrink-0 rounded-sm bg-zinc-200 dark:bg-zinc-700" />
+      <div className="flex items-center gap-2 border-b border-[rgb(58,59,65)] bg-[rgba(34,35,40,0.84)] px-4 py-1.5 text-xs">
+        <span className="h-3 w-3 flex-shrink-0 rounded-sm bg-[rgb(90,91,97)]" />
         <Link
           href={backHref}
-          className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          className="text-[rgb(156,153,143)] hover:text-[rgb(244,243,239)]"
         >
           {backLabel}
         </Link>
-        <span className="text-zinc-300 dark:text-zinc-700">/</span>
-        <span className="font-medium text-zinc-700 dark:text-zinc-200">{node.title}</span>
+        <span className="text-[rgb(90,91,97)]">/</span>
+        <span className="font-medium text-[rgb(200,198,192)]">{node.title}</span>
         {role !== "OWNER" && (
-          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          <span className="rounded bg-[rgba(255,255,255,0.08)] px-1.5 py-0.5 text-[11px] text-[rgb(156,153,143)]">
             {role === "VIEW" ? "Nur ansehen" : role === "COMMENT" ? "Kommentieren" : "Bearbeiten"}
           </span>
         )}
       </div>
-      <div className="relative flex items-center justify-center border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-        <h1 className="font-serif text-xl font-bold text-zinc-900 dark:text-zinc-50">{node.title}</h1>
+      <div className="relative flex items-center justify-center border-b border-[rgb(58,59,65)] bg-[rgba(34,35,40,0.84)] px-4 py-3">
+        <h1 className="font-serif text-xl font-bold text-[rgb(244,243,239)]">{node.title}</h1>
         {role === "OWNER" && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
             <ShareDialog nodeId={id} />

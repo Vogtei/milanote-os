@@ -55,14 +55,14 @@ function FileCard({ shape }: { shape: FileShape }) {
         style={{
           width: shape.props.w,
           height: shape.props.h,
-          background: "#fff",
-          border: "1px solid #e4e4e7",
+          background: "#202127",
+          border: "1px solid rgb(58,59,65)",
           borderRadius: 6,
           display: "flex",
           alignItems: "center",
           gap: 10,
           padding: "10px 12px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
           fontFamily: "sans-serif",
           overflow: "hidden",
         }}
@@ -76,8 +76,8 @@ function FileCard({ shape }: { shape: FileShape }) {
             height: 32,
             flexShrink: 0,
             borderRadius: 4,
-            background: "#f4f4f5",
-            color: "#71717a",
+            background: "rgba(255,255,255,0.08)",
+            color: "rgb(156,153,143)",
           }}
         >
           <FileIcon />
@@ -87,7 +87,7 @@ function FileCard({ shape }: { shape: FileShape }) {
             style={{
               fontSize: 12.5,
               fontWeight: 600,
-              color: "#27272a",
+              color: "rgb(244,243,239)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -95,14 +95,14 @@ function FileCard({ shape }: { shape: FileShape }) {
           >
             {shape.props.name}
           </span>
-          <span style={{ fontSize: 11, color: "#71717a" }}>
+          <span style={{ fontSize: 11, color: "rgb(156,153,143)" }}>
             {formatSize(shape.props.size)} ·{" "}
             <a
               href={shape.props.src}
               target="_blank"
               rel="noreferrer"
               onPointerDown={stopEventPropagation}
-              style={{ color: "#3b82f6", textDecoration: "underline" }}
+              style={{ color: "#6ea8fe", textDecoration: "underline" }}
             >
               Download
             </a>

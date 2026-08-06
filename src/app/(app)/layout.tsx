@@ -8,10 +8,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   if (!session?.user) redirect("/signin");
 
   return (
-    <div className="flex h-dvh">
+    <div className="flex h-dvh bg-[#17181c]">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end gap-3 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-800">
+        <header className="flex items-center justify-end gap-3 border-b border-[rgb(58,59,65)] bg-[rgba(34,35,40,0.84)] px-4 py-2 text-xs text-[rgb(156,153,143)]">
           <SidebarToggle />
           <span>{session.user.email}</span>
           <form
@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               await signOut({ redirectTo: "/signin" });
             }}
           >
-            <button className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            <button className="hover:text-[rgb(244,243,239)]">
               Abmelden
             </button>
           </form>

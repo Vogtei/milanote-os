@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Tldraw, createShapeId, defaultShapeUtils, inlineBase64AssetStore } from "tldraw";
+import {
+  Tldraw,
+  createShapeId,
+  defaultShapeUtils,
+  inlineBase64AssetStore,
+  AssetRecordType,
+} from "tldraw";
 import type { Editor } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import "tldraw/tldraw.css";
@@ -25,6 +31,42 @@ export function BoardCanvas({ id }: { id: string }) {
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [pending, setPending] = useState(false);
+
+  function handleMount(editor: Editor) {
+    setEditor(editor);
+
+    // Pasting or dropping a URL onto the canvas normally creates a bookmark
+    // via tldraw's own (external) unfurl service. Override it with our
+    // self-hosted /api/unfurl so link previews work fully offline/self-hosted.
+    editor.registerExternalAssetHandler("url", async ({ url }) => {
+      const assetId = AssetRecordType.createId();
+      const base = {
+        id: assetId,
+        typeName: "asset" as const,
+        type: "bookmark" as const,
+        meta: {},
+      };
+      try {
+        const res = await fetch(`/api/unfurl?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        return {
+          ...base,
+          props: {
+            src: url,
+            title: data.title ?? url,
+            description: data.description ?? "",
+            image: data.image ?? "",
+            favicon: data.favicon ?? "",
+          },
+        };
+      } catch {
+        return {
+          ...base,
+          props: { src: url, title: url, description: "", image: "", favicon: "" },
+        };
+      }
+    });
+  }
 
   async function submitNewBoardLink(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +92,7 @@ export function BoardCanvas({ id }: { id: string }) {
 
   return (
     <div className="relative h-full w-full">
-      <Tldraw store={store} shapeUtils={shapeUtils} onMount={setEditor} />
+      <Tldraw store={store} shapeUtils={shapeUtils} onMount={handleMount} />
 
       <div className="absolute right-3 top-3 z-[300]">
         {creating ? (

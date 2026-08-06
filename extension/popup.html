@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Milanote-OS Clipper</title>
+    <style>
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        color: #18181b;
+      }
+      h1 {
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      .preview {
+        background: #f4f4f5;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 10px;
+        max-height: 70px;
+        overflow: hidden;
+        color: #52525b;
+        word-break: break-word;
+      }
+      select {
+        width: 100%;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #d4d4d8;
+        margin-bottom: 10px;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        background: #18181b;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      #status {
+        margin-top: 8px;
+        text-align: center;
+        color: #52525b;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+      #status.ok {
+        color: #15803d;
+      }
+      a {
+        color: #2563eb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>An Milanote-OS senden</h1>
+    <div class="preview" id="preview">Lädt…</div>
+    <select id="board" disabled>
+      <option>Lädt Boards…</option>
+    </select>
+    <button id="save" disabled>Speichern</button>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

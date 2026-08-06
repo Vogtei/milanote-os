@@ -1,6 +1,19 @@
 import { signIn } from "@/auth";
 
-export default function SignInPage() {
+function safeRedirect(target: string | undefined) {
+  if (!target) return "/";
+  // Only allow same-origin relative paths — never forward an absolute URL
+  // or protocol-relative "//host" value from the query string (open redirect).
+  if (!target.startsWith("/") || target.startsWith("//")) return "/";
+  return target;
+}
+
+export default async function SignInPage(props: PageProps<"/signin">) {
+  const searchParams = await props.searchParams;
+  const callbackUrl = safeRedirect(
+    typeof searchParams.callbackUrl === "string" ? searchParams.callbackUrl : undefined,
+  );
+
   return (
     <div className="flex min-h-full flex-1 items-center justify-center px-6 py-24">
       <div className="w-full max-w-sm">
@@ -16,7 +29,7 @@ export default function SignInPage() {
             "use server";
             await signIn("nodemailer", {
               email: formData.get("email"),
-              redirectTo: "/",
+              redirectTo: callbackUrl,
             });
           }}
         >

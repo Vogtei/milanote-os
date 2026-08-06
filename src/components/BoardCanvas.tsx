@@ -13,7 +13,7 @@ import { minioAssetStore } from "@/lib/asset-store";
 const shapeUtils = [...defaultShapeUtils, BoardLinkShapeUtil];
 const SYNC_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL ?? "ws://localhost:5858";
 
-export function BoardCanvas({ id }: { id: string }) {
+export function BoardCanvas({ id, readonly = false }: { id: string; readonly?: boolean }) {
   const store = useSync({
     uri: `${SYNC_URL}?boardId=${id}`,
     shapeUtils,
@@ -27,6 +27,7 @@ export function BoardCanvas({ id }: { id: string }) {
 
   function handleMount(editor: Editor) {
     setEditor(editor);
+    if (readonly) editor.updateInstanceState({ isReadonly: true });
 
     // Pasting or dropping a URL onto the canvas normally creates a bookmark
     // via tldraw's own (external) unfurl service. Override it with our
@@ -87,6 +88,7 @@ export function BoardCanvas({ id }: { id: string }) {
     <div className="relative h-full w-full">
       <Tldraw store={store} shapeUtils={shapeUtils} onMount={handleMount} />
 
+      {!readonly && (
       <div className="absolute right-3 top-3 z-[300]">
         {creating ? (
           <form
@@ -119,6 +121,7 @@ export function BoardCanvas({ id }: { id: string }) {
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -28,7 +28,7 @@ export function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-[400] flex items-center justify-center bg-black/45 p-4"
+      className="fixed inset-0 z-[400] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="vos-panel vos-panel-shadow flex h-[min(560px,100%)] w-[min(720px,100%)] flex-col overflow-hidden rounded-2xl">

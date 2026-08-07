@@ -63,7 +63,7 @@ export function MobileBar({ editor }: { editor: BoardEditor }) {
         <div className="fixed inset-0 z-[320]" role="dialog" aria-label="Element hinzufügen">
           <button
             aria-label="Schließen"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setSheetOpen(false)}
           />
           <div

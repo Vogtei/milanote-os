@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { BoardEditor } from "@/canvas/editor";
 import type { AnyItem } from "@/canvas/types";
@@ -27,6 +27,7 @@ import { CommentIcon } from "@/components/icons/MilanoteIcons";
 import { SettingsModal } from "@/components/SettingsModal";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
+import { useClickAway } from "@/components/useClickAway";
 
 export type ExportFormat = "png" | "pdf-standard" | "pdf-high";
 
@@ -39,26 +40,6 @@ export type BoardChrome = {
   share?: React.ReactNode;
   user: { name: string | null; email: string };
 };
-
-/** Shared close-on-outside-click behaviour for the topbar's popovers. The
- *  ref goes on the wrapper that contains BOTH the trigger button and the
- *  popover — not the popover alone — so a second click on the trigger
- *  counts as "inside" and is left to the button's own toggle handler.
- *  Attaching it to the popover only made every trigger's second click race
- *  its own toggle against this close, since pointerdown (which this listens
- *  for) fires before the button's click event. */
-function useClickAway(open: boolean, onClose: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDocPointerDown(e: PointerEvent) {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("pointerdown", onDocPointerDown);
-    return () => document.removeEventListener("pointerdown", onDocPointerDown);
-  }, [open, onClose]);
-  return ref;
-}
 
 export function BoardTopBar({
   editor,
@@ -85,6 +66,18 @@ export function BoardTopBar({
 
   const exportRef = useClickAway(exportOpen, () => setExportOpen(false));
   const zoomRef = useClickAway(zoomOpen, () => setZoomOpen(false));
+
+  // Clicking into the board collapses whatever popover the header opened —
+  // Export/Zoom already get this for free from useClickAway (the canvas is
+  // "outside" either wrapper), but Search has no wrapper of its own to be
+  // outside of, so it listens for the editor's own pointerdown directly.
+  useEffect(
+    () =>
+      editor.subscribe((event) => {
+        if (event.type === "canvasPointerDown") setSearchOpen(false);
+      }),
+    [editor],
+  );
 
   return (
     <>

@@ -179,6 +179,13 @@ function BoardSurface({
         if (event.type === "requestEdit") editor.setEditing(event.itemId);
         if (event.type === "requestImage") actions.fillImage(event.itemId);
         if (event.type === "requestDocument") setDocumentId(event.itemId);
+        // Their triggers (Kommentare in the header, Papierkorb in the rail)
+        // sit nowhere near these docked sidebars, so a plain click-away ref
+        // doesn't apply — clicking into the board itself closes them instead.
+        if (event.type === "canvasPointerDown") {
+          setCommentsOpen(false);
+          setItemTrashOpen(false);
+        }
       }),
     [editor, router, actions],
   );

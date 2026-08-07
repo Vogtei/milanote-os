@@ -5,6 +5,7 @@ import { createShareLink, listShareLinks, revokeShareLink } from "@/lib/share";
 import { ShareRole } from "@/generated/prisma/enums";
 import { IconBtn } from "@/components/vos/IconBtn";
 import { ShareIcon } from "@/components/icons/VosIcons";
+import { useClickAway } from "@/components/useClickAway";
 
 type Link = {
   id: string;
@@ -25,6 +26,7 @@ export function ShareDialog({ nodeId }: { nodeId: string }) {
   const [role, setRole] = useState<Link["role"]>("EDIT");
   const [isPending, startTransition] = useTransition();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const ref = useClickAway(open, () => setOpen(false));
 
   useEffect(() => {
     if (open) void reload();
@@ -57,7 +59,7 @@ export function ShareDialog({ nodeId }: { nodeId: string }) {
   }
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <IconBtn label="Teilen" active={open} onClick={() => setOpen((v) => !v)}>
         <ShareIcon />
       </IconBtn>

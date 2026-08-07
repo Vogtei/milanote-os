@@ -71,7 +71,12 @@ export type EditorEvent =
   | { type: "openBoard"; nodeId: string }
   | { type: "requestEdit"; itemId: string }
   | { type: "requestImage"; itemId: string }
-  | { type: "requestDocument"; itemId: string };
+  | { type: "requestDocument"; itemId: string }
+  /** Fires at the start of every canvas pointerdown — the chrome (search,
+   *  comments/trash sidebars) listens for this to collapse itself the moment
+   *  the user clicks into the board, regardless of what the click goes on to
+   *  do (select, pan, draw...). */
+  | { type: "canvasPointerDown" };
 
 /**
  * Owns everything about the board that isn't React: the document, the camera,
@@ -417,6 +422,7 @@ export class BoardEditor {
   // ------------------------------------------------------------- interaction
 
   onPointerDown(screen: Vec, opts: { shift: boolean; middle: boolean; alt: boolean }) {
+    this.emit({ type: "canvasPointerDown" });
     const world = this.screenToWorld(screen);
 
     if (opts.middle || this.spaceDown || this.tool === "hand") {

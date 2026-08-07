@@ -45,11 +45,23 @@ function toolsHeight(count: number): number {
  * is a fifth of a phone screen, and popovers anchored to its right edge run
  * straight off the viewport.
  */
+/** Drag-only tools: no native draggable, no click-to-arm — a custom
+ *  pointer-driven drag (see BoardShell's startToolDrag) is the only way to
+ *  create them, with its own live-following ghost instead of the browser's
+ *  static drag snapshot. Select and arrow are exempt: arrow has to be armed
+ *  by a click so a drag *on the canvas* can draw it, and select isn't a
+ *  placement tool. Popover tools (shape/draw) are exempt too — their
+ *  individual glyphs keep native drag (see ShapePicker). */
+function isDragOnly(tool: ToolSpec): boolean {
+  return !tool.popover && tool.id !== "select" && tool.id !== "arrow";
+}
+
 export function CanvasRail({
   editor,
   canComment = false,
   trashOpen = false,
   onToggleTrash,
+  onToolDragStart,
 }: {
   editor: BoardEditor;
   /** COMMENT-role viewers can't edit the board (editor.isReadonly() is true
@@ -59,6 +71,7 @@ export function CanvasRail({
   canComment?: boolean;
   trashOpen?: boolean;
   onToggleTrash?: () => void;
+  onToolDragStart?: (tool: ToolSpec, e: React.PointerEvent) => void;
 }) {
   useEditorTick(editor);
   const actions = useCanvasActions();
@@ -137,7 +150,8 @@ export function CanvasRail({
             label={tool.label}
             active={active === tool.id}
             icon={<tool.icon size={22} />}
-            dragToolId={tool.id}
+            dragToolId={isDragOnly(tool) ? undefined : tool.id}
+            onPointerDown={isDragOnly(tool) ? (e) => onToolDragStart?.(tool, e) : undefined}
             onClick={() => runToolClick(tool)}
           />
           {popover === "shape" && tool.popover === "shape" && <ShapePicker editor={editor} />}
@@ -154,7 +168,12 @@ export function CanvasRail({
             onClick={() => setPopover((open) => (open === "overflow" ? null : "overflow"))}
           />
           {popover === "overflow" && (
-            <OverflowMenu tools={overflowed} active={active} onPick={runToolClick} />
+            <OverflowMenu
+              tools={overflowed}
+              active={active}
+              onPick={runToolClick}
+              onToolDragStart={onToolDragStart}
+            />
           )}
         </div>
       )}
@@ -233,10 +252,12 @@ function OverflowMenu({
   tools,
   active,
   onPick,
+  onToolDragStart,
 }: {
   tools: ToolSpec[];
   active: ToolId;
   onPick: (tool: ToolSpec) => void;
+  onToolDragStart?: (tool: ToolSpec, e: React.PointerEvent) => void;
 }) {
   return (
     <div
@@ -244,17 +265,24 @@ function OverflowMenu({
       role="group"
       aria-label="Weitere Werkzeuge"
     >
-      {tools.map((tool) => (
+      {tools.map((tool) => {
+        const dragOnly = isDragOnly(tool);
+        return (
         <button
           key={tool.id}
           onClick={() => onPick(tool)}
           title={tool.label}
           aria-pressed={active === tool.id}
-          draggable
-          onDragStart={(e) => {
-            e.dataTransfer.setData(DRAG_MIME, tool.id);
-            e.dataTransfer.effectAllowed = "copy";
-          }}
+          draggable={!dragOnly}
+          onPointerDown={dragOnly ? (e) => onToolDragStart?.(tool, e) : undefined}
+          onDragStart={
+            dragOnly
+              ? undefined
+              : (e) => {
+                  e.dataTransfer.setData(DRAG_MIME, tool.id);
+                  e.dataTransfer.effectAllowed = "copy";
+                }
+          }
           className="flex flex-col items-center gap-1.5 rounded-lg text-[10px] font-medium text-[var(--vos-muted)] transition-colors hover:text-[var(--vos-text-strong)]"
         >
           <span
@@ -268,7 +296,8 @@ function OverflowMenu({
           </span>
           <span className="leading-none">{tool.label}</span>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -378,17 +407,22 @@ export function RailButton({
   label,
   active,
   dragToolId,
+  onPointerDown,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   dragToolId?: string;
+  /** Custom pointer-driven drag (see BoardShell's startToolDrag) — mutually
+   *  exclusive with dragToolId's native HTML5 drag. */
+  onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void;
   onClick?: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      onPointerDown={onPointerDown}
       title={label}
       aria-label={label}
       aria-pressed={active}
@@ -402,7 +436,7 @@ export function RailButton({
           : undefined
       }
       className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color,transform] duration-[220ms] ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:translate-x-[3px] active:translate-x-[8px] active:duration-[120ms] active:ease-[cubic-bezier(0.4,0,0.2,1)] ${
-        dragToolId ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        dragToolId || onPointerDown ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       } ${
         active
           ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"

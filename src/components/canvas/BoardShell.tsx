@@ -14,7 +14,7 @@ import { SelectionToolbar } from "@/components/canvas/SelectionToolbar";
 import { MobileBar } from "@/components/canvas/MobileBar";
 import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/CanvasActions";
 import { BoardTopBar, type BoardChrome, type ExportFormat } from "@/components/canvas/BoardTopBar";
-import { DRAG_MIME, SHAPE_KIND_MIME } from "@/components/canvas/tools";
+import { DRAG_MIME, SHAPE_KIND_MIME, type ToolSpec } from "@/components/canvas/tools";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
 import { ItemTrashPanel } from "@/components/canvas/ItemTrashPanel";
@@ -110,6 +110,8 @@ function BoardSurface({
   const [presenting, setPresenting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const [dragGhost, setDragGhost] = useState<{ tool: ToolSpec; x: number; y: number } | null>(null);
 
   // Presentation mode: real browser fullscreen with the chrome hidden. The
   // two effects stay one-directional each way so they don't fight each
@@ -209,6 +211,8 @@ function BoardSurface({
   );
 
   // Dropping a rail button on the canvas creates that item at the drop point.
+  // Still used by the shape popover's individual glyphs, which keep native
+  // HTML5 drag — see startToolDrag below for the rail buttons themselves.
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       const tool = e.dataTransfer.getData(DRAG_MIME) as ToolId;
@@ -222,8 +226,52 @@ function BoardSurface({
     [editor, actions, readonly],
   );
 
+  // Native HTML5 drag-and-drop only starts following the cursor once the
+  // browser's own internal threshold fires, using a static, semi-transparent
+  // snapshot as the ghost — nothing like Milanote's own rail, where the item
+  // pops up and tracks the pointer immediately. This is a plain pointer-based
+  // drag instead: it renders its own ghost (below) and calls runTool itself
+  // on release, bypassing the onDrop path above entirely for these tools.
+  const startToolDrag = useCallback(
+    (tool: ToolSpec, down: React.PointerEvent) => {
+      if (readonly) return;
+      down.preventDefault();
+      const origin = { x: down.clientX, y: down.clientY };
+      const THRESHOLD = 4;
+      let moved = false;
+
+      const onMove = (e: PointerEvent) => {
+        if (!moved) {
+          if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) < THRESHOLD) return;
+          moved = true;
+        }
+        setDragGhost({ tool, x: e.clientX, y: e.clientY });
+      };
+
+      const onUp = (e: PointerEvent) => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        setDragGhost(null);
+        // No movement past the threshold — this was a plain click, which
+        // does nothing for a drag-only tool (see CanvasRail's runToolClick).
+        if (!moved) return;
+        const surface = surfaceRef.current;
+        if (!surface) return;
+        const rect = surface.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+        const at = editor.screenToWorld({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        runTool(editor, actions, tool.id, at);
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [editor, actions, readonly],
+  );
+
   return (
     <div
+      ref={surfaceRef}
       className="absolute inset-0"
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes(DRAG_MIME)) e.preventDefault();
@@ -264,7 +312,21 @@ function BoardSurface({
               setCommentsOpen(false);
               setItemTrashOpen((v) => !v);
             }}
+            onToolDragStart={startToolDrag}
           />
+          {dragGhost && (
+            <div
+              className="pointer-events-none fixed z-[500] -translate-x-1/2 -translate-y-1/2"
+              style={{ left: dragGhost.x, top: dragGhost.y }}
+            >
+              <div className="vos-panel vos-panel-shadow flex h-[50px] w-[52px] flex-col items-center justify-center gap-[3px] rounded-[10px] text-[10px] font-medium text-[var(--vos-text-strong)]">
+                <span className="flex h-[22px] w-[22px] items-center justify-center">
+                  <dragGhost.tool.icon size={22} />
+                </span>
+                <span>{dragGhost.tool.label}</span>
+              </div>
+            </div>
+          )}
           <SelectionToolbar editor={editor} />
           <MobileBar editor={editor} />
 

@@ -30,6 +30,7 @@ import {
   Home,
   Eraser,
   Highlighter,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,3 +70,4 @@ export const PngFileIcon = wrap(FileImage);
 export const PresentIcon = wrap(Presentation);
 export const ExitPresentIcon = wrap(Minimize2);
 export const HomeIcon = wrap(Home);
+export const CloseIcon = wrap(X);

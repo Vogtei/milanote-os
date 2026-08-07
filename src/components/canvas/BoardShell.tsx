@@ -17,6 +17,8 @@ import { BoardTopBar, type BoardChrome, type ExportFormat } from "@/components/c
 import { DRAG_MIME, SHAPE_KIND_MIME } from "@/components/canvas/tools";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
+import { CommentPins } from "@/components/canvas/CommentPins";
+import { listComments, type Comment } from "@/lib/comments";
 import { ExitPresentIcon } from "@/components/icons/VosIcons";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -52,8 +54,21 @@ export function BoardShell({
     editor.setReadonly(readonly);
   }, [editor, readonly]);
 
+  // Comments live in Postgres, not editor.store, so they're fetched here and
+  // handed to both the canvas pins and the sidebar list — one fetch, two
+  // consumers, instead of each maintaining its own copy.
+  const [comments, setComments] = useState<Comment[] | null>(null);
+  useEffect(() => {
+    if (boardId) void reloadComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId]);
+
+  async function reloadComments() {
+    setComments(await listComments(boardId));
+  }
+
   return (
-    <CanvasActionsProvider editor={editor} boardId={boardId}>
+    <CanvasActionsProvider editor={editor} boardId={boardId} onCommentCreated={reloadComments}>
       <BoardSurface
         editor={editor}
         boardId={boardId}
@@ -61,6 +76,7 @@ export function BoardShell({
         readonly={readonly}
         canComment={canComment}
         boardCounts={boardCounts}
+        comments={comments}
       />
     </CanvasActionsProvider>
   );
@@ -73,6 +89,7 @@ function BoardSurface({
   readonly,
   canComment,
   boardCounts,
+  comments,
 }: {
   editor: BoardEditor;
   boardId: string;
@@ -80,6 +97,7 @@ function BoardSurface({
   readonly: boolean;
   canComment: boolean;
   boardCounts: Record<string, number>;
+  comments: Comment[] | null;
 }) {
   const router = useRouter();
   const actions = useCanvasActions();
@@ -204,6 +222,7 @@ function BoardSurface({
       onDrop={onDrop}
     >
       <VosCanvas editor={editor} boardCounts={boardCounts} />
+      {!presenting && comments && <CommentPins editor={editor} comments={comments} />}
 
       {presenting ? (
         <button
@@ -225,7 +244,7 @@ function BoardSurface({
             saveState={saveState}
           />
 
-          <CanvasRail editor={editor} />
+          <CanvasRail editor={editor} canComment={canComment} />
           <SelectionToolbar editor={editor} />
           <MobileBar editor={editor} />
 
@@ -234,11 +253,10 @@ function BoardSurface({
           )}
 
           <CommentsPanel
-            boardId={boardId}
-            canPost={canComment}
+            editor={editor}
+            comments={comments}
             open={commentsOpen}
-            onOpenChange={setCommentsOpen}
-            hideTrigger
+            onClose={() => setCommentsOpen(false)}
           />
         </>
       )}

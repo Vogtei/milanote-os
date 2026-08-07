@@ -40,7 +40,13 @@ export type BoardChrome = {
   share?: React.ReactNode;
 };
 
-/** Shared close-on-outside-click behaviour for the topbar's popovers. */
+/** Shared close-on-outside-click behaviour for the topbar's popovers. The
+ *  ref goes on the wrapper that contains BOTH the trigger button and the
+ *  popover — not the popover alone — so a second click on the trigger
+ *  counts as "inside" and is left to the button's own toggle handler.
+ *  Attaching it to the popover only made every trigger's second click race
+ *  its own toggle against this close, since pointerdown (which this listens
+ *  for) fires before the button's click event. */
 function useClickAway(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -76,6 +82,10 @@ export function BoardTopBar({
   const [zoomOpen, setZoomOpen] = useState(false);
   const readonly = editor.isReadonly();
   const { theme, setPreference } = useTheme();
+
+  const exportRef = useClickAway(exportOpen, () => setExportOpen(false));
+  const zoomRef = useClickAway(zoomOpen, () => setZoomOpen(false));
+  const menuRef = useClickAway(menuOpen, () => setMenuOpen(false));
 
   return (
     <>
@@ -121,13 +131,12 @@ export function BoardTopBar({
             </IconBtn>
           </span>
 
-          <div className="relative hidden md:block">
+          <div ref={exportRef} className="relative">
             <IconBtn label="Exportieren" active={exportOpen} onClick={() => setExportOpen((v) => !v)}>
               <ExportImageIcon />
             </IconBtn>
             {exportOpen && (
               <ExportMenu
-                onClose={() => setExportOpen(false)}
                 onExport={(format) => {
                   setExportOpen(false);
                   onExport(format);
@@ -138,7 +147,7 @@ export function BoardTopBar({
 
           {chrome.share}
 
-          <div className="relative">
+          <div ref={zoomRef} className="relative">
             <button
               type="button"
               title="Zoom"
@@ -156,7 +165,6 @@ export function BoardTopBar({
             {zoomOpen && (
               <ZoomMenu
                 editor={editor}
-                onClose={() => setZoomOpen(false)}
                 onPresent={() => {
                   setZoomOpen(false);
                   onPresent();
@@ -171,14 +179,13 @@ export function BoardTopBar({
           >
             {theme === "dark" ? <MoonIcon /> : <SunIcon />}
           </IconBtn>
-          <div className="relative">
+          <div ref={menuRef} className="relative">
             <IconBtn label="Menü" active={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               <KebabIcon />
             </IconBtn>
             {menuOpen && (
               <BoardMenu
                 onClose={() => setMenuOpen(false)}
-                onExport={() => onExport("png")}
                 onToggleComments={onToggleComments}
               />
             )}
@@ -211,41 +218,39 @@ function Breadcrumb({ chrome }: { chrome: BoardChrome }) {
           </Link>
         </span>
       ))}
-      <span className="text-[var(--vos-faint)]">/</span>
+      {/* Current board again, as plain text — the centered title says the
+          same thing, but a nav trail that stops one short of "you are here"
+          isn't actually a nav trail. */}
+      <span className="flex min-w-0 shrink items-center gap-1">
+        <span className="text-[var(--vos-faint)]">/</span>
+        <span className="shrink-0 truncate px-1.5 py-1 text-[13px] font-medium text-[var(--vos-text-strong)]">
+          {chrome.title}
+        </span>
+      </span>
     </div>
   );
 }
 
-function ExportMenu({
-  onClose,
-  onExport,
-}: {
-  onClose: () => void;
-  onExport: (format: ExportFormat) => void;
-}) {
-  const ref = useClickAway(true, onClose);
+function ExportMenu({ onExport }: { onExport: (format: ExportFormat) => void }) {
   const row =
     "flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-[var(--vos-hover-soft)]";
 
   return (
-    <div
-      ref={ref}
-      className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-64 flex-col rounded-xl p-1.5"
-    >
+    <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-80 flex-col rounded-xl p-1.5">
       <span className="px-2 pb-1 pt-1.5 text-[11px] uppercase tracking-wide text-[var(--vos-faint)]">
         Board exportieren
       </span>
       <button className={row} onClick={() => onExport("pdf-standard")}>
         <PdfIcon size={18} className="mt-0.5 shrink-0 text-[var(--vos-muted)]" />
         <span>
-          <span className="block text-[13px] text-[var(--vos-text)]">PDF Standard</span>
+          <span className="block whitespace-nowrap text-[13px] text-[var(--vos-text)]">PDF Standard</span>
           <span className="block text-[11px] text-[var(--vos-faint)]">Kleine Dateigröße</span>
         </span>
       </button>
       <button className={row} onClick={() => onExport("pdf-high")}>
         <PdfIcon size={18} className="mt-0.5 shrink-0 text-[var(--vos-muted)]" />
         <span>
-          <span className="block text-[13px] text-[var(--vos-text)]">PDF hohe Qualität</span>
+          <span className="block whitespace-nowrap text-[13px] text-[var(--vos-text)]">PDF hohe Qualität</span>
           <span className="block text-[11px] text-[var(--vos-faint)]">Große Dateigröße</span>
         </span>
       </button>
@@ -262,21 +267,15 @@ const ZOOM_MAX = 800;
 
 function ZoomMenu({
   editor,
-  onClose,
   onPresent,
 }: {
   editor: BoardEditor;
-  onClose: () => void;
   onPresent: () => void;
 }) {
-  const ref = useClickAway(true, onClose);
   const pct = Math.round(editor.getCamera().z * 100);
 
   return (
-    <div
-      ref={ref}
-      className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-64 flex-col gap-2.5 rounded-xl p-3"
-    >
+    <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-64 flex-col gap-2.5 rounded-xl p-3">
       <div>
         <div className="flex items-center gap-2">
           <IconBtn label="Verkleinern" onClick={() => editor.zoomOut()}>
@@ -323,30 +322,21 @@ function ZoomMenu({
 
 function BoardMenu({
   onClose,
-  onExport,
   onToggleComments,
 }: {
   onClose: () => void;
-  onExport: () => void;
   onToggleComments: () => void;
 }) {
-  const ref = useClickAway(true, onClose);
-
   const row =
     "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]";
 
   return (
-    <div
-      ref={ref}
-      className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-60 flex-col rounded-xl p-1.5"
-    >
-      {/* Duplicates of topbar buttons that are hidden on narrow screens —
-          the menu is the only place they exist on a phone. */}
+    <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-60 flex-col rounded-xl p-1.5">
+      {/* Duplicate of a topbar button hidden on narrow screens — the menu
+          is the only place it exists on a phone. Export is never hidden, so
+          it doesn't need a duplicate here. */}
       <button className={`${row} sm:hidden`} onClick={() => { onClose(); onToggleComments(); }}>
         <CommentIcon size={18} /> Kommentare
-      </button>
-      <button className={`${row} md:hidden`} onClick={() => { onClose(); onExport(); }}>
-        <ExportImageIcon size={18} /> Als PNG speichern
       </button>
 
       <span className="my-1 h-px bg-[var(--vos-border)]" />

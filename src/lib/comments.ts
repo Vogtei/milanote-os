@@ -6,6 +6,15 @@ import { cookies } from "next/headers";
 import { resolveBoardAccess, canComment } from "@/lib/access-core";
 import { revalidatePath } from "next/cache";
 
+export type Comment = {
+  id: string;
+  text: string;
+  x: number | null;
+  y: number | null;
+  createdAt: string | Date;
+  author: { name: string | null; email: string };
+};
+
 async function requireAccess(boardId: string) {
   const session = await auth();
   const userId = session?.user?.id;
@@ -28,7 +37,11 @@ export async function listComments(boardId: string) {
   });
 }
 
-export async function createComment(boardId: string, text: string) {
+/** x/y place the comment as a pin on the canvas — the tool that creates one
+ *  always has a point (the click/drop location), so this is effectively
+ *  required in practice even though the column stays nullable for the
+ *  pre-pin comments already in the table. */
+export async function createComment(boardId: string, text: string, x?: number, y?: number) {
   const { userId, access } = await requireAccess(boardId);
   if (!canComment(access.role)) throw new Error("Forbidden");
 
@@ -36,7 +49,7 @@ export async function createComment(boardId: string, text: string) {
   if (!trimmed) throw new Error("Empty comment");
 
   const comment = await prisma.comment.create({
-    data: { boardId: access.node.id, authorId: userId, text: trimmed },
+    data: { boardId: access.node.id, authorId: userId, text: trimmed, x, y },
     include: { author: { select: { name: true, email: true } } },
   });
   revalidatePath(`/board/${boardId}`);

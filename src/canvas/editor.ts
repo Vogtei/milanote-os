@@ -40,6 +40,7 @@ export type ToolId =
   | "document"
   | "file"
   | "link"
+  | "comment"
   | "shape"
   | "draw"
   | "eraser"
@@ -256,6 +257,16 @@ export class BoardEditor {
     const items = this.getSelectedItems();
     if (items.length === 0) return;
     this.setCamera(cameraForBounds(unionBounds(items.map(itemBounds)), this.size, 120));
+  }
+
+  /** Centers the camera on a bare world point — comment pins aren't store
+   *  items, so there's nothing to select and zoomToSelection doesn't apply.
+   *  A small synthetic box around the point reuses cameraForBounds' own
+   *  zoom-clamping instead of jumping straight to 100%. */
+  panToPoint(point: Vec) {
+    this.setCamera(
+      cameraForBounds({ x: point.x - 100, y: point.y - 75, w: 200, h: 150 }, this.size, 160),
+    );
   }
 
   // ----------------------------------------------------------- hit testing

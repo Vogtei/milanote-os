@@ -20,7 +20,17 @@ import { ShapeGlyph } from "@/components/canvas/ShapeGlyph";
  * is a fifth of a phone screen, and popovers anchored to its right edge run
  * straight off the viewport.
  */
-export function CanvasRail({ editor }: { editor: BoardEditor }) {
+export function CanvasRail({
+  editor,
+  canComment = false,
+}: {
+  editor: BoardEditor;
+  /** COMMENT-role viewers can't edit the board (editor.isReadonly() is true
+   *  for them) but still need a way to drop a comment pin — a stripped rail
+   *  with just Wählen/Kommentar covers that instead of hiding the rail
+   *  outright the way plain VIEW-role readonly does. */
+  canComment?: boolean;
+}) {
   useEditorTick(editor);
   const actions = useCanvasActions();
   const [popover, setPopover] = useState<"shape" | "draw" | null>(null);
@@ -35,8 +45,10 @@ export function CanvasRail({ editor }: { editor: BoardEditor }) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [popover]);
 
-  if (editor.isReadonly()) return null;
+  const readonly = editor.isReadonly();
+  if (readonly && !canComment) return null;
   const active = editor.getTool();
+  const tools = readonly ? TOOLS.filter((tool) => tool.id === "select" || tool.id === "comment") : TOOLS;
 
   return (
     <aside
@@ -45,7 +57,7 @@ export function CanvasRail({ editor }: { editor: BoardEditor }) {
       style={{ maxHeight: "calc(100% - 130px)" }}
       aria-label="Werkzeuge"
     >
-      {TOOLS.map((tool) => (
+      {tools.map((tool) => (
         <div key={tool.id} className="relative">
           <RailButton
             label={tool.label}
@@ -80,6 +92,7 @@ export function runTool(
 ) {
   switch (id) {
     case "link": return actions.promptLink(at);
+    case "comment": return actions.promptComment(at);
     case "board": return actions.createBoard(at);
     case "image": return actions.pickImage(at);
     case "file": return actions.pickFile(at);

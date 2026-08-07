@@ -6,20 +6,24 @@ import type { Vec } from "@/canvas/types";
 import { createNode } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
 import { uploadRawFile } from "@/lib/asset-store";
+import { createComment } from "@/lib/comments";
 
 // Item kinds that need something from outside the canvas before they exist:
-// a URL, a new board record, or a file. Both the desktop rail and the mobile
-// sheet trigger them, so the dialog and the hidden file inputs live here once.
+// a URL, a new board record, a file, or comment text. Both the desktop rail
+// and the mobile sheet trigger them, so the dialog and the hidden file
+// inputs live here once.
 //
-// Only Link still asks first — there's nothing sensible to put on the board
-// without a URL. Board and Bild create their item immediately (an untitled
-// board, an empty picture frame) and let the user fill it in afterwards, which
-// keeps a dialog out of the way of a drag-and-drop gesture.
+// Link and Kommentar still ask first — there's nothing sensible to put on
+// the board without a URL or a comment's text. Board and Bild create their
+// item immediately (an untitled board, an empty picture frame) and let the
+// user fill it in afterwards, which keeps a dialog out of the way of a
+// drag-and-drop gesture.
 
-type Prompt = "link" | null;
+type Prompt = "link" | "comment" | null;
 
 type Actions = {
   promptLink: (at?: Vec) => void;
+  promptComment: (at?: Vec) => void;
   createBoard: (at?: Vec) => void;
   pickImage: (at?: Vec) => void;
   /** Attaches a picture to an existing (empty) image item — the double-click
@@ -40,10 +44,15 @@ export function useCanvasActions(): Actions {
 export function CanvasActionsProvider({
   editor,
   boardId,
+  onCommentCreated,
   children,
 }: {
   editor: BoardEditor;
   boardId: string;
+  /** Comments live in Postgres, not the doc store, so nothing already
+   *  watching the editor picks up a new pin — this is how the caller finds
+   *  out it needs to refetch. */
+  onCommentCreated?: () => void;
   children: React.ReactNode;
 }) {
   const [prompt, setPrompt] = useState<Prompt>(null);
@@ -69,6 +78,7 @@ export function CanvasActionsProvider({
   };
 
   const promptLink = useCallback((at?: Vec) => open("link", at), []);
+  const promptComment = useCallback((at?: Vec) => open("comment", at), []);
 
   const createBoard = useCallback(
     (at?: Vec) => {
@@ -148,6 +158,21 @@ export function CanvasActionsProvider({
     }
   }
 
+  async function submitComment(e: React.FormEvent) {
+    e.preventDefault();
+    const text = value.trim();
+    if (!text) return;
+    const at = target();
+    setPrompt(null);
+    setBusy(true);
+    try {
+      await createComment(boardId, text, at.x, at.y);
+      onCommentCreated?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     const itemId = fillTargetRef.current;
@@ -191,7 +216,9 @@ export function CanvasActionsProvider({
   }
 
   return (
-    <ActionsContext.Provider value={{ promptLink, createBoard, pickImage, fillImage, pickFile, busy }}>
+    <ActionsContext.Provider
+      value={{ promptLink, promptComment, createBoard, pickImage, fillImage, pickFile, busy }}
+    >
       {children}
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
@@ -202,36 +229,70 @@ export function CanvasActionsProvider({
           className="fixed inset-0 z-[400] flex items-start justify-center bg-black/40 pt-[18vh]"
           onPointerDown={(e) => e.target === e.currentTarget && setPrompt(null)}
         >
-          <form
-            onSubmit={submitLink}
-            className="vos-panel vos-panel-shadow flex w-[min(420px,calc(100vw-32px))] flex-col gap-3 rounded-2xl p-4"
-          >
-            <label className="text-[13px] font-medium text-[var(--vos-text)]">Link einfügen</label>
-            <input
-              autoFocus
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setPrompt(null)}
-              placeholder="https://…"
-              className="h-10 rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPrompt(null)}
-                className="h-9 rounded-lg px-3 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="submit"
-                disabled={busy || !value.trim()}
-                className="h-9 rounded-lg bg-[var(--vos-text-strong)] px-3.5 text-[13px] font-semibold text-[var(--vos-bg)] disabled:opacity-40"
-              >
-                Einfügen
-              </button>
-            </div>
-          </form>
+          {prompt === "link" ? (
+            <form
+              onSubmit={submitLink}
+              className="vos-panel vos-panel-shadow flex w-[min(420px,calc(100vw-32px))] flex-col gap-3 rounded-2xl p-4"
+            >
+              <label className="text-[13px] font-medium text-[var(--vos-text)]">Link einfügen</label>
+              <input
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && setPrompt(null)}
+                placeholder="https://…"
+                className="h-10 rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrompt(null)}
+                  className="h-9 rounded-lg px-3 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || !value.trim()}
+                  className="h-9 rounded-lg bg-[var(--vos-text-strong)] px-3.5 text-[13px] font-semibold text-[var(--vos-bg)] disabled:opacity-40"
+                >
+                  Einfügen
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={submitComment}
+              className="vos-panel vos-panel-shadow flex w-[min(420px,calc(100vw-32px))] flex-col gap-3 rounded-2xl p-4"
+            >
+              <label className="text-[13px] font-medium text-[var(--vos-text)]">Kommentar</label>
+              <textarea
+                autoFocus
+                rows={3}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && setPrompt(null)}
+                placeholder="Kommentar schreiben…"
+                className="resize-none rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3 py-2 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrompt(null)}
+                  className="h-9 rounded-lg px-3 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || !value.trim()}
+                  className="h-9 rounded-lg bg-[var(--vos-text-strong)] px-3.5 text-[13px] font-semibold text-[var(--vos-bg)] disabled:opacity-40"
+                >
+                  Kommentieren
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
     </ActionsContext.Provider>

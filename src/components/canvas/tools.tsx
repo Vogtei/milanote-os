@@ -1,7 +1,14 @@
 "use client";
 
 import type { ToolId } from "@/canvas/editor";
-import { NoteIcon, LinkIcon, TodoIcon, ImageIcon, DrawIcon } from "@/components/icons/MilanoteIcons";
+import {
+  NoteIcon,
+  LinkIcon,
+  TodoIcon,
+  ImageIcon,
+  DrawIcon,
+  CommentIcon,
+} from "@/components/icons/MilanoteIcons";
 import {
   SelectIcon,
   TextIcon,
@@ -36,6 +43,7 @@ export const TOOLS: ToolSpec[] = [
   { id: "document", label: "Dokument", icon: DocumentIcon },
   { id: "link", label: "Link", icon: LinkIcon },
   { id: "todo", label: "To-do", icon: TodoIcon },
+  { id: "comment", label: "Kommentar", icon: CommentIcon },
   { id: "shape", label: "Formen", icon: ShapesIcon, popover: "shape" },
   { id: "draw", label: "Zeichnen", icon: DrawIcon, popover: "draw" },
   { id: "arrow", label: "Pfeil", icon: ArrowIcon },

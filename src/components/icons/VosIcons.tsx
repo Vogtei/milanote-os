@@ -22,8 +22,12 @@ import {
   Lock,
   Unlock,
   Copy,
-  Folder,
+  LayoutGrid,
   FileText,
+  FileImage,
+  Presentation,
+  Minimize2,
+  Home,
   Eraser,
   Highlighter,
   type LucideIcon,
@@ -56,7 +60,12 @@ export const MoonIcon = wrap(Moon);
 export const LockIcon = wrap(Lock);
 export const UnlockIcon = wrap(Unlock);
 export const CopyIcon = wrap(Copy);
-export const FolderIcon = wrap(Folder);
+export const FolderIcon = wrap(LayoutGrid);
 export const DocumentIcon = wrap(FileText);
 export const EraserIcon = wrap(Eraser);
 export const HighlighterIcon = wrap(Highlighter);
+export const PdfIcon = wrap(FileText);
+export const PngFileIcon = wrap(FileImage);
+export const PresentIcon = wrap(Presentation);
+export const ExitPresentIcon = wrap(Minimize2);
+export const HomeIcon = wrap(Home);

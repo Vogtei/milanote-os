@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { BoardEditor } from "@/canvas/editor";
 import type { ToolId } from "@/canvas/editor";
 import type { Doc, ShapeKind } from "@/canvas/types";
-import { exportBoardPng } from "@/canvas/export";
+import { exportBoardPng, exportBoardPdf } from "@/canvas/export";
 import { PALETTES } from "@/canvas/theme";
 import { saveBoardDoc } from "@/lib/board-doc";
 import { VosCanvas } from "@/components/canvas/VosCanvas";
@@ -13,11 +13,11 @@ import { CanvasRail, runTool } from "@/components/canvas/CanvasRail";
 import { SelectionToolbar } from "@/components/canvas/SelectionToolbar";
 import { MobileBar } from "@/components/canvas/MobileBar";
 import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/CanvasActions";
-import { BoardTopBar, type BoardChrome } from "@/components/canvas/BoardTopBar";
+import { BoardTopBar, type BoardChrome, type ExportFormat } from "@/components/canvas/BoardTopBar";
 import { DRAG_MIME, SHAPE_KIND_MIME } from "@/components/canvas/tools";
-import { ZoomControls } from "@/components/vos/ZoomControls";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
+import { ExitPresentIcon } from "@/components/icons/VosIcons";
 import { useTheme } from "@/components/ThemeProvider";
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -87,8 +87,30 @@ function BoardSurface({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
+  const [presenting, setPresenting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
+
+  // Presentation mode: real browser fullscreen with the chrome hidden. The
+  // two effects stay one-directional each way so they don't fight each
+  // other — entering/leaving `presenting` drives fullscreen, and the
+  // browser's own fullscreenchange (e.g. the user pressing Escape) drives
+  // `presenting` back, never the reverse in the same tick.
+  useEffect(() => {
+    function onFullscreenChange() {
+      if (!document.fullscreenElement) setPresenting(false);
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (presenting) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }, [presenting]);
 
   // Autosave. Debounced so a drag doesn't fire a request per frame, and
   // flushed on unload so closing the tab mid-edit doesn't lose the last change.
@@ -141,13 +163,23 @@ function BoardSurface({
     [editor, router, actions],
   );
 
-  const onExport = useCallback(async () => {
-    const ok = await exportBoardPng(editor.store.getItems(), PALETTES[theme], {
-      filename: `${chrome.title || "board"}.png`,
-      boardCounts,
-    });
-    if (!ok) console.warn("[board] nothing to export");
-  }, [editor, theme, chrome.title, boardCounts]);
+  const onExport = useCallback(
+    async (format: ExportFormat) => {
+      const items = editor.store.getItems();
+      const palette = PALETTES[theme];
+      const name = chrome.title || "board";
+      const ok =
+        format === "png"
+          ? await exportBoardPng(items, palette, { filename: `${name}.png`, boardCounts })
+          : await exportBoardPdf(items, palette, {
+              quality: format === "pdf-high" ? "high" : "standard",
+              filename: `${name}.pdf`,
+              boardCounts,
+            });
+      if (!ok) console.warn("[board] nothing to export");
+    },
+    [editor, theme, chrome.title, boardCounts],
+  );
 
   // Dropping a rail button on the canvas creates that item at the drop point.
   const onDrop = useCallback(
@@ -173,32 +205,43 @@ function BoardSurface({
     >
       <VosCanvas editor={editor} boardCounts={boardCounts} />
 
-      <BoardTopBar
-        editor={editor}
-        chrome={chrome}
-        onExport={onExport}
-        onToggleComments={() => setCommentsOpen((v) => !v)}
-        saveState={saveState}
-      />
+      {presenting ? (
+        <button
+          type="button"
+          onClick={() => setPresenting(false)}
+          title="Präsentation beenden (Esc)"
+          className="vos-panel vos-panel-shadow absolute right-3.5 top-3.5 z-[300] flex h-9 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium text-[var(--vos-muted)] hover:text-[var(--vos-text-strong)]"
+        >
+          <ExitPresentIcon size={16} /> Beenden
+        </button>
+      ) : (
+        <>
+          <BoardTopBar
+            editor={editor}
+            chrome={chrome}
+            onExport={onExport}
+            onToggleComments={() => setCommentsOpen((v) => !v)}
+            onPresent={() => setPresenting(true)}
+            saveState={saveState}
+          />
 
-      <CanvasRail editor={editor} />
-      <SelectionToolbar editor={editor} />
-      <span className="hidden md:contents">
-        <ZoomControls editor={editor} />
-      </span>
-      <MobileBar editor={editor} />
+          <CanvasRail editor={editor} />
+          <SelectionToolbar editor={editor} />
+          <MobileBar editor={editor} />
 
-      {documentId && (
-        <DocumentWindow editor={editor} itemId={documentId} onClose={() => setDocumentId(null)} />
+          {documentId && (
+            <DocumentWindow editor={editor} itemId={documentId} onClose={() => setDocumentId(null)} />
+          )}
+
+          <CommentsPanel
+            boardId={boardId}
+            canPost={canComment}
+            open={commentsOpen}
+            onOpenChange={setCommentsOpen}
+            hideTrigger
+          />
+        </>
       )}
-
-      <CommentsPanel
-        boardId={boardId}
-        canPost={canComment}
-        open={commentsOpen}
-        onOpenChange={setCommentsOpen}
-        hideTrigger
-      />
     </div>
   );
 }

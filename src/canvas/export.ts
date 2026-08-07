@@ -1,27 +1,23 @@
+import jsPDF from "jspdf";
 import type { AnyItem } from "@/canvas/types";
 import type { CanvasPalette } from "@/canvas/theme";
 import { itemBounds, unionBounds } from "@/canvas/geometry";
 import { render } from "@/canvas/renderer";
 
 /**
- * Renders the whole board to a PNG off-screen. Reuses the same render() the
- * live canvas uses, with selection state emptied and the grid off, so an export
- * can never drift from what's on screen.
+ * Renders the whole board to an off-screen canvas at the given pixel scale.
+ * Reuses the same render() the live canvas uses, with selection state
+ * emptied and the grid off, so an export can never drift from what's on
+ * screen. Shared by the PNG and PDF exporters below.
  */
-export async function exportBoardPng(
+async function renderBoardToCanvas(
   items: AnyItem[],
   palette: CanvasPalette,
-  options: {
-    scale?: number;
-    padding?: number;
-    filename?: string;
-    boardCounts?: Record<string, number>;
-  } = {},
-): Promise<boolean> {
-  if (items.length === 0) return false;
+  options: { scale: number; padding: number; boardCounts?: Record<string, number> },
+): Promise<HTMLCanvasElement | null> {
+  if (items.length === 0) return null;
 
-  const scale = options.scale ?? 2;
-  const padding = options.padding ?? 48;
+  const { scale, padding } = options;
   const bounds = unionBounds(items.map(itemBounds));
   const width = bounds.w + padding * 2;
   const height = bounds.h + padding * 2;
@@ -30,7 +26,7 @@ export async function exportBoardPng(
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
   const ctx = canvas.getContext("2d");
-  if (!ctx) return false;
+  if (!ctx) return null;
 
   const draw = () =>
     render(ctx, {
@@ -57,14 +53,72 @@ export async function exportBoardPng(
   await new Promise((resolve) => setTimeout(resolve, 350));
   draw();
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) return false;
+  return canvas;
+}
 
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = options.filename ?? "board.png";
+  link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+export async function exportBoardPng(
+  items: AnyItem[],
+  palette: CanvasPalette,
+  options: {
+    scale?: number;
+    padding?: number;
+    filename?: string;
+    boardCounts?: Record<string, number>;
+  } = {},
+): Promise<boolean> {
+  const canvas = await renderBoardToCanvas(items, palette, {
+    scale: options.scale ?? 2,
+    padding: options.padding ?? 48,
+    boardCounts: options.boardCounts,
+  });
+  if (!canvas) return false;
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) return false;
+
+  downloadBlob(blob, options.filename ?? "board.png");
+  return true;
+}
+
+/**
+ * "Standard" trades resolution and lossy JPEG compression for a small file;
+ * "high" renders at 3x and embeds a lossless PNG instead — the same two-tier
+ * choice Milanote's own export menu offers, built from this project's own
+ * renderer rather than anything of theirs.
+ */
+export async function exportBoardPdf(
+  items: AnyItem[],
+  palette: CanvasPalette,
+  options: {
+    quality: "standard" | "high";
+    padding?: number;
+    filename?: string;
+    boardCounts?: Record<string, number>;
+  },
+): Promise<boolean> {
+  const padding = options.padding ?? 48;
+  const scale = options.quality === "high" ? 3 : 1;
+  const canvas = await renderBoardToCanvas(items, palette, { scale, padding, boardCounts: options.boardCounts });
+  if (!canvas) return false;
+
+  const format = options.quality === "high" ? "image/png" : "image/jpeg";
+  const dataUrl = canvas.toDataURL(format, options.quality === "high" ? undefined : 0.7);
+
+  const doc = new jsPDF({
+    unit: "px",
+    format: [canvas.width, canvas.height],
+    hotfixes: ["px_scaling"],
+  });
+  doc.addImage(dataUrl, options.quality === "high" ? "PNG" : "JPEG", 0, 0, canvas.width, canvas.height);
+  doc.save(options.filename ?? "board.pdf");
   return true;
 }

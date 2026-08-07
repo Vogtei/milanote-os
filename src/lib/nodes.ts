@@ -20,6 +20,26 @@ export async function listChildren(parentId: string | null) {
   });
 }
 
+/** Root-first ancestor chain for the breadcrumb trail — walks parentId up
+ *  one lean lookup at a time rather than a recursive query, since board
+ *  nesting in practice runs a handful of levels deep. The depth cap is only
+ *  a guard against a corrupt/cyclic parentId chain, not a real limit. */
+export async function getAncestors(parentId: string | null): Promise<{ id: string; title: string }[]> {
+  const ownerId = await requireUserId();
+  const chain: { id: string; title: string }[] = [];
+  let current = parentId;
+  for (let i = 0; i < 50 && current; i++) {
+    const node = await prisma.node.findFirst({
+      where: { id: current, ownerId, deletedAt: null },
+      select: { id: true, title: true, parentId: true },
+    });
+    if (!node) break;
+    chain.push({ id: node.id, title: node.title });
+    current = node.parentId;
+  }
+  return chain.reverse();
+}
+
 export async function getNode(id: string) {
   const ownerId = await requireUserId();
   return prisma.node.findFirst({

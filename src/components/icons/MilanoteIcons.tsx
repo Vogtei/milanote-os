@@ -8,7 +8,7 @@ import {
   Image,
   Pencil,
   Trash2,
-  Folder,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,4 +27,4 @@ export const CommentIcon = wrap(MessageSquare);
 export const ImageIcon = wrap(Image);
 export const DrawIcon = wrap(Pencil);
 export const TrashIcon = wrap(Trash2);
-export const BoardIcon = wrap(Folder);
+export const BoardIcon = wrap(LayoutGrid);

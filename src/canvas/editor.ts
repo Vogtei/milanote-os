@@ -244,6 +244,7 @@ export class BoardEditor {
   zoomIn() { this.setCamera(zoomTo(this.camera, this.size, clampZoom(this.camera.z * 1.25))); }
   zoomOut() { this.setCamera(zoomTo(this.camera, this.size, clampZoom(this.camera.z / 1.25))); }
   resetZoom() { this.setCamera(zoomTo(this.camera, this.size, 1)); }
+  setZoom(z: number) { this.setCamera(zoomTo(this.camera, this.size, z)); }
 
   zoomToFit() {
     const items = this.store.getItems();

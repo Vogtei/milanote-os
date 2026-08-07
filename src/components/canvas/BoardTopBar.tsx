@@ -88,7 +88,7 @@ export function BoardTopBar({
 
   return (
     <>
-      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 rounded-b-2xl pl-3.5 pr-1.5">
+      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 pl-3.5 pr-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-0.5">
           <Breadcrumb chrome={chrome} />
           {chrome.roleLabel && (
@@ -350,14 +350,14 @@ function SearchPanel({ editor, onClose }: { editor: BoardEditor; onClose: () => 
     : [];
 
   return (
-    <div className="vos-panel vos-panel-shadow absolute right-2.5 top-[66px] z-[305] flex w-[min(320px,calc(100vw-20px))] flex-col rounded-xl p-2">
+    <div className="vos-panel vos-panel-shadow fixed left-1/2 top-[66px] z-[305] flex w-[min(640px,calc(100vw-40px))] -translate-x-1/2 flex-col rounded-xl p-2">
       <input
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
         placeholder="Auf diesem Board suchen…"
-        className="rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-2.5 py-2 text-[13px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
+        className="rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3.5 py-2.5 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
       />
       {needle && (
         <div className="mt-1.5 flex max-h-72 flex-col overflow-y-auto">

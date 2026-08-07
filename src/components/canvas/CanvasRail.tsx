@@ -23,6 +23,10 @@ const PADDING = 20;
  *  chrome before this became a fixed-height layout. */
 const CHROME_CLEARANCE = 130;
 const MIN_RAIL_H = BUTTON_H * 2 + PADDING;
+/** The pinned Trash block sits apart from the rest of the rail — a hairline
+ *  divider plus roughly double the normal gap, not just another button in
+ *  the same list. Matches the block's own pt-2 + divider + gap-2 below. */
+const TRASH_BLOCK_GAP = 17;
 
 function toolsHeight(count: number): number {
   return count <= 0 ? 0 : count * BUTTON_H + (count - 1) * GAP;
@@ -89,7 +93,7 @@ export function CanvasRail({
   const showTrash = !readonly && !!onToggleTrash;
 
   const railH = windowH > 0 ? Math.max(MIN_RAIL_H, windowH - CHROME_CLEARANCE) : MIN_RAIL_H;
-  const trashBudget = showTrash ? BUTTON_H + GAP : 0;
+  const trashBudget = showTrash ? BUTTON_H + TRASH_BLOCK_GAP : 0;
   const budget = railH - PADDING - trashBudget;
 
   let visible = tools;
@@ -148,7 +152,8 @@ export function CanvasRail({
       )}
 
       {showTrash && (
-        <div className="mt-auto shrink-0">
+        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-2 pt-2">
+          <span className="h-px w-8 shrink-0 bg-[var(--vos-border)] opacity-60" />
           <RailButton
             label="Papierkorb"
             active={trashOpen}
@@ -204,10 +209,18 @@ export function runTool(
 
 const POPOVER = "vos-panel vos-panel-shadow absolute left-[60px] top-0 z-[400] rounded-2xl p-2.5";
 
-/** Grid of the tools that didn't fit in the fixed-height rail — same visual
- *  language as the reference app's own overflow menu, anchored to the bottom
- *  so it opens upward from the "…" button near the foot of the rail instead
- *  of running off the bottom of the screen. */
+/** Own positioning, deliberately not built on POPOVER — mixing its `top-0`
+ *  with a `bottom-0` override in one className string left both rules in the
+ *  compiled stylesheet (Tailwind classes don't cancel each other out by
+ *  string order), which is what made this render squashed against the "…"
+ *  trigger instead of as a proper flyout. Anchored to the bottom so it opens
+ *  upward from the "…" button near the foot of the rail. */
+const OVERFLOW_POPOVER =
+  "vos-panel vos-panel-shadow absolute left-[60px] bottom-0 z-[400] rounded-2xl p-2.5";
+
+/** Grid of the tools that didn't fit in the fixed-height rail. Each icon
+ *  sits in its own soft chip, labelled below — same visual language as the
+ *  reference app's own overflow menu. */
 function OverflowMenu({
   tools,
   active,
@@ -219,7 +232,7 @@ function OverflowMenu({
 }) {
   return (
     <div
-      className={`${POPOVER} top-auto bottom-0 grid w-[190px] grid-cols-3 gap-1`}
+      className={`${OVERFLOW_POPOVER} grid w-[192px] grid-cols-3 gap-2`}
       role="group"
       aria-label="Weitere Werkzeuge"
     >
@@ -234,13 +247,17 @@ function OverflowMenu({
             e.dataTransfer.setData(DRAG_MIME, tool.id);
             e.dataTransfer.effectAllowed = "copy";
           }}
-          className={`flex h-[54px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition-colors ${
-            active === tool.id
-              ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
-              : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-          }`}
+          className="flex flex-col items-center gap-1.5 rounded-lg text-[10px] font-medium text-[var(--vos-muted)] transition-colors hover:text-[var(--vos-text-strong)]"
         >
-          <tool.icon size={20} />
+          <span
+            className={`grid h-11 w-11 place-items-center rounded-xl transition-colors ${
+              active === tool.id
+                ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
+                : "bg-[var(--vos-hover-soft)]"
+            }`}
+          >
+            <tool.icon size={20} />
+          </span>
           <span className="leading-none">{tool.label}</span>
         </button>
       ))}

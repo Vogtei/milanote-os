@@ -161,7 +161,14 @@ export function CanvasRail({
   return (
     <aside
       ref={railRef}
-      style={{ height: `${railH}px` }}
+      // A hard height would force the rail to stretch and fill the whole
+      // budget even when its content is shorter — the visible gap this was
+      // reported against, between the drag group and the pinned block below
+      // it. maxHeight keeps the same collapse-into-"…" ceiling (the visible/
+      // overflowed split above already guarantees content never exceeds
+      // `railH`) while letting the rail shrink to its natural content height
+      // whenever there's slack.
+      style={{ maxHeight: `${railH}px` }}
       className="vos-panel pointer-events-auto absolute left-2.5 top-1/2 z-[280] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[15px] py-2.5 md:flex"
       aria-label="Werkzeuge"
     >

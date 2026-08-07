@@ -11,20 +11,20 @@ import {
   zoomTo,
 } from "@/canvas/camera";
 import type { HandleId } from "@/canvas/geometry";
-import { todoRowAt } from "@/canvas/todoLayout";
+import { requiredTodoHeight, todoRowAt } from "@/canvas/todoLayout";
 import { containerLabelRect } from "@/canvas/containerLayout";
 import { anchorFor, anchorPoint, resolveArrowEndpoints } from "@/canvas/arrowBinding";
 import {
   boundsOfPoints,
   distance,
   distanceToSegment,
-  HANDLES,
   handlePoint,
   itemBounds,
   normalizeRect,
   rectContains,
   rectsIntersect,
   remapPoint,
+  RESIZE_HANDLES,
   resizeBounds,
   unionBounds,
 } from "@/canvas/geometry";
@@ -311,10 +311,16 @@ export class BoardEditor {
   }
 
   private handleAt(screenPoint: Vec): HandleId | null {
-    if (this.selection.size === 0 || this.readonly) return null;
-    if (this.getSelectedItems().some((item) => item.locked)) return null;
-    const bounds = unionBounds(this.getSelectedItems().map(itemBounds));
-    for (const handle of HANDLES) {
+    // Only a single-item selection ever offers a handle — the resize
+    // affordance (corner grip or corner dots, see renderer.ts) is per-type
+    // and only drawn for one item at a time.
+    if (this.selection.size !== 1 || this.readonly) return null;
+    const item = this.getSelectedItems()[0];
+    if (!item || item.locked) return null;
+    const handles = RESIZE_HANDLES[item.type];
+    if (!handles) return null;
+    const bounds = itemBounds(item);
+    for (const handle of handles) {
       const screen = worldToScreen(this.camera, handlePoint(bounds, handle));
       if (Math.abs(screen.x - screenPoint.x) <= HANDLE_HIT && Math.abs(screen.y - screenPoint.y) <= HANDLE_HIT) {
         return handle;
@@ -767,7 +773,10 @@ export class BoardEditor {
     const entry = { id: crypto.randomUUID(), text: "", done: false };
     const entries = [...item.props.entries];
     entries.splice(index + 1, 0, entry);
-    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+    this.store.transact(() => {
+      this.store.updateProps(itemId, { entries } as never);
+      this.store.update(itemId, { h: requiredTodoHeight(item.props.title, entries.length) });
+    });
     this.editingEntry = { itemId, entryId: entry.id };
     this.changed();
   }
@@ -780,7 +789,10 @@ export class BoardEditor {
     const index = item.props.entries.findIndex((e) => e.id === entryId);
     if (index === -1) return;
     const entries = item.props.entries.filter((e) => e.id !== entryId);
-    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+    this.store.transact(() => {
+      this.store.updateProps(itemId, { entries } as never);
+      this.store.update(itemId, { h: requiredTodoHeight(item.props.title, entries.length) });
+    });
     this.editingEntry = index > 0 ? { itemId, entryId: entries[index - 1].id } : null;
     this.changed();
   }
@@ -796,9 +808,11 @@ export class BoardEditor {
     let target = entryId;
     if (!target || target === "placeholder" || item.props.entries.length === 0) {
       const entry = { id: crypto.randomUUID(), text: "", done: false };
-      this.store.transact(() =>
-        this.store.updateProps(itemId, { entries: [...item.props.entries, entry] } as never),
-      );
+      const entries = [...item.props.entries, entry];
+      this.store.transact(() => {
+        this.store.updateProps(itemId, { entries } as never);
+        this.store.update(itemId, { h: requiredTodoHeight(item.props.title, entries.length) });
+      });
       target = entry.id;
     }
     this.setSelection([itemId]);

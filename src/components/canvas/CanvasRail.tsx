@@ -393,7 +393,7 @@ export function RailButton({
             }
           : undefined
       }
-      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-colors ${
+      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color,transform] duration-150 ease-out hover:translate-x-[3px] active:translate-x-[8px] active:duration-75 ${
         dragToolId ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       } ${
         active

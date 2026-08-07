@@ -150,3 +150,15 @@ export function measureBlocksHeight(
   }
   return total;
 }
+
+// A throwaway, never-painted canvas purely for ctx.measureText — DOM overlay
+// components (NoteEditor) need to measure text but have no canvas of their
+// own to borrow a context from the way the renderer does.
+let measureCanvas: HTMLCanvasElement | null = null;
+
+export function getMeasureContext(): CanvasRenderingContext2D {
+  if (!measureCanvas) measureCanvas = document.createElement("canvas");
+  const ctx = measureCanvas.getContext("2d");
+  if (!ctx) throw new Error("2d context unavailable");
+  return ctx;
+}

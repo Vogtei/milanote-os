@@ -1,13 +1,13 @@
 import type { AnyItem, Camera, Item, NoteColor, Rect, Vec } from "@/canvas/types";
 import type { CanvasPalette } from "@/canvas/theme";
 import { viewportBounds } from "@/canvas/camera";
-import { boundsOfPoints, HANDLES, handlePoint, itemBounds, rectsIntersect, unionBounds } from "@/canvas/geometry";
+import { boundsOfPoints, handlePoint, itemBounds, RESIZE_HANDLES, rectsIntersect, unionBounds } from "@/canvas/geometry";
 import { ellipsize, font, wrapText } from "@/canvas/text";
 import { resolveArrowEndpoints, type ItemLookup } from "@/canvas/arrowBinding";
 import { todoRows } from "@/canvas/todoLayout";
 import { paintBlocks } from "@/canvas/richTextPaint";
 import { isBlocksEmpty } from "@/canvas/richText";
-import { containerTileHeight } from "@/canvas/containerLayout";
+import { containerTileHeight, containerTileRect, documentSheetRect } from "@/canvas/containerLayout";
 import { coverRect, getImage } from "@/canvas/images";
 
 export type RenderState = {
@@ -369,7 +369,7 @@ function formatSize(bytes: number): string {
 // aren't clipped by it.
 function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState) {
   const tileH = containerTileHeight(item);
-  const tile = { x: item.x + item.w * 0.14, y: item.y, w: item.w * 0.72, h: tileH };
+  const tile = containerTileRect(item);
 
   ctx.fillStyle = state.palette.folderTile;
   ctx.beginPath();
@@ -406,10 +406,11 @@ function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: R
 // Same silhouette as the folder — sheet, then name, then length — so a board
 // full of containers reads as one family of cards.
 function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, state: RenderState) {
-  const sheetH = containerTileHeight(item);
-  const sheetW = sheetH * 0.78;
-  const x = item.x + (item.w - sheetW) / 2;
-  const y = item.y;
+  const sheet = documentSheetRect(item);
+  const sheetH = sheet.h;
+  const sheetW = sheet.w;
+  const x = sheet.x;
+  const y = sheet.y;
   const fold = Math.min(16, sheetW * 0.28);
 
   ctx.beginPath();
@@ -714,21 +715,83 @@ function drawArrow(ctx: CanvasRenderingContext2D, item: Item<"arrow">, state: Re
   ctx.restore();
 }
 
+/** Outline bounds for selection/hover — the item's own visible shape, not
+ *  its raw x/y/w/h box. A board/document reserves 44px below the tile for
+ *  its label (see containerLayout.ts), which the outline should skip. */
+function selectionBounds(item: AnyItem, lookup: ItemLookup): Rect {
+  if (item.type === "board") return containerTileRect(item);
+  if (item.type === "document") return documentSheetRect(item);
+  return arrowAwareBounds(item, lookup);
+}
+
+/** Three short diagonal strokes fanning out from the corner — a resize grip,
+ *  not a draggable point on a grid. Only image/text get this; it's the sole
+ *  resize affordance they have. */
+function drawCornerGrip(ctx: CanvasRenderingContext2D, point: Vec, camera: Camera, palette: CanvasPalette) {
+  ctx.strokeStyle = palette.accent;
+  ctx.lineWidth = 1.4 / camera.z;
+  ctx.lineCap = "round";
+  for (const offset of [3.5, 6.5, 9.5]) {
+    const d = offset / camera.z;
+    ctx.beginPath();
+    ctx.moveTo(point.x - d, point.y);
+    ctx.lineTo(point.x, point.y - d);
+    ctx.stroke();
+  }
+}
+
+/** Small filled dot, matching the arrow endpoint handles' own look — used
+ *  for shape/draw's corner-only resize points instead of the old filled
+ *  squares. */
+function drawDotHandle(ctx: CanvasRenderingContext2D, point: Vec, camera: Camera, palette: CanvasPalette) {
+  const r = HANDLE_SIZE / 2.4 / camera.z;
+  ctx.fillStyle = palette.handleFill;
+  ctx.strokeStyle = palette.accent;
+  ctx.lineWidth = 1.2 / camera.z;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawResizeAffordance(
+  ctx: CanvasRenderingContext2D,
+  item: AnyItem,
+  bounds: Rect,
+  palette: CanvasPalette,
+  camera: Camera,
+) {
+  const handles = RESIZE_HANDLES[item.type];
+  if (!handles) return;
+  if (item.type === "image" || item.type === "text") {
+    drawCornerGrip(ctx, handlePoint(bounds, "se"), camera, palette);
+    return;
+  }
+  for (const handle of handles) drawDotHandle(ctx, handlePoint(bounds, handle), camera, palette);
+}
+
 function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState, lookup: ItemLookup) {
   const { palette, camera } = state;
   // Outline widths are specified in screen pixels, so they're divided by the
   // zoom to survive the camera transform at any scale.
   const hairline = 1.5 / camera.z;
 
+  // Hovering an unselected item redraws it slightly larger, on top of itself
+  // — immediate-mode canvas has no other way to "scale" something already
+  // painted. Minimal (3%), just enough to read as "this reacts."
   if (state.hovered && !state.selected.has(state.hovered)) {
     const item = state.items.find((i) => i.id === state.hovered);
     if (item) {
-      ctx.strokeStyle = palette.accent;
-      ctx.globalAlpha = 0.45;
-      ctx.lineWidth = hairline;
-      roundRect(ctx, inflate(arrowAwareBounds(item, lookup), 2 / camera.z), 8 / camera.z);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      const bounds = selectionBounds(item, lookup);
+      const cx = bounds.x + bounds.w / 2;
+      const cy = bounds.y + bounds.h / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(1.03, 1.03);
+      ctx.translate(-cx, -cy);
+      drawItem(ctx, item, state, lookup);
+      ctx.restore();
+      drawResizeAffordance(ctx, item, bounds, palette, camera);
     }
   }
 
@@ -763,30 +826,25 @@ function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState, lookup
     return;
   }
 
+  // Full outline around each selected item's own visible shape — no handles
+  // here; a manual-resize affordance (if any) is drawn separately below,
+  // only for a single-item selection.
   ctx.strokeStyle = palette.accent;
   ctx.lineWidth = hairline;
   for (const item of selected) {
-    roundRect(ctx, inflate(arrowAwareBounds(item, lookup), 2 / camera.z), 8 / camera.z);
+    roundRect(ctx, inflate(selectionBounds(item, lookup), 2 / camera.z), 8 / camera.z);
     ctx.stroke();
   }
 
-  const bounds = unionBounds(selected.map((i) => arrowAwareBounds(i, lookup)));
   if (selected.length > 1) {
+    const bounds = unionBounds(selected.map((i) => arrowAwareBounds(i, lookup)));
     ctx.setLineDash([4 / camera.z, 4 / camera.z]);
     ctx.strokeRect(bounds.x, bounds.y, bounds.w, bounds.h);
     ctx.setLineDash([]);
+    return;
   }
 
-  const size = HANDLE_SIZE / camera.z;
-  ctx.fillStyle = palette.handleFill;
-  ctx.lineWidth = hairline;
-  for (const handle of HANDLES) {
-    const point = handlePoint(bounds, handle);
-    ctx.beginPath();
-    ctx.roundRect(point.x - size / 2, point.y - size / 2, size, size, 2 / camera.z);
-    ctx.fill();
-    ctx.stroke();
-  }
+  drawResizeAffordance(ctx, selected[0], selectionBounds(selected[0], lookup), palette, camera);
 }
 
 function inflate(rect: Rect, by: number): Rect {

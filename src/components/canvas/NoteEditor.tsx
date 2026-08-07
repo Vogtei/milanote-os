@@ -6,6 +6,7 @@ import { PALETTES } from "@/canvas/theme";
 import { useTheme } from "@/components/ThemeProvider";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { blocksToHtml, parseHtmlToBlocks } from "@/canvas/richText";
+import { getMeasureContext, measureBlocksHeight } from "@/canvas/richTextPaint";
 import { RichTextToolbar } from "@/components/canvas/RichTextToolbar";
 
 /**
@@ -49,11 +50,19 @@ export function NoteEditor({ editor }: { editor: BoardEditor }) {
   const topLeft = editor.worldToScreen({ x: item.x, y: item.y });
   const padding = 14;
 
+  // Grows the card to fit its content live, on every keystroke — a note has
+  // no manual resize handle at all (see renderer.ts's RESIZE_HANDLES), this
+  // is its only sizing mechanism.
   const commit = () => {
     const el = ref.current;
     if (!el) return;
     const blocks = parseHtmlToBlocks(el.innerHTML);
-    editor.store.transact(() => editor.store.updateProps(item.id, { blocks } as never));
+    const contentH = measureBlocksHeight(getMeasureContext(), blocks, item.w - padding * 2, 15);
+    const h = Math.max(60, contentH + padding * 2);
+    editor.store.transact(() => {
+      editor.store.updateProps(item.id, { blocks } as never);
+      if (h !== item.h) editor.store.update(item.id, { h });
+    });
   };
 
   return (

@@ -82,6 +82,18 @@ export function handlePoint(bounds: Rect, handle: HandleId): Vec {
   }
 }
 
+/** Which corners offer a manual-resize handle, per item type — shared by the
+ *  renderer (what to draw) and the editor (what to hit-test). Everything
+ *  else gets none: note/todo auto-grow to content, board/document/link/file
+ *  are fixed tiles, and arrow has its own dedicated start/end interaction
+ *  entirely outside this system. */
+export const RESIZE_HANDLES: Partial<Record<AnyItem["type"], HandleId[]>> = {
+  image: ["se"],
+  text: ["se"],
+  shape: ["nw", "ne", "se", "sw"],
+  draw: ["nw", "ne", "se", "sw"],
+};
+
 export const HANDLE_CURSORS: Record<HandleId, string> = {
   nw: "nwse-resize",
   n: "ns-resize",

@@ -7,6 +7,8 @@ import { PALETTES } from "@/canvas/theme";
 import { setFontFamily } from "@/canvas/text";
 import { useTheme } from "@/components/ThemeProvider";
 import { TextOverlay } from "@/components/canvas/TextOverlay";
+import { TodoEntryOverlay } from "@/components/canvas/TodoEntryOverlay";
+import { RenameOverlay } from "@/components/canvas/RenameOverlay";
 
 const CURSORS: Partial<Record<ToolId, string>> = {
   hand: "grab",
@@ -68,6 +70,8 @@ export function VosCanvas({
         selected: editor.getSelection(),
         hovered: editor.getHovered(),
         editingId: editor.getEditingId(),
+        editingEntry: editor.getEditingEntry(),
+        renaming: editor.getRenaming(),
         marquee: editor.getMarquee(),
         palette: PALETTES[theme],
         showGrid: true,
@@ -313,6 +317,8 @@ export function VosCanvas({
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <canvas ref={canvasRef} className="block touch-none" style={{ cursor }} />
       <TextOverlay editor={editor} />
+      <TodoEntryOverlay editor={editor} />
+      <RenameOverlay editor={editor} />
     </div>
   );
 }

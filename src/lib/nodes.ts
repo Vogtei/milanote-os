@@ -53,6 +53,21 @@ export async function createNode(
   return node;
 }
 
+export async function renameNode(id: string, title: string) {
+  const ownerId = await requireUserId();
+  const trimmed = title.trim();
+  if (!trimmed) throw new Error("Title required");
+
+  const node = await prisma.node.findFirst({ where: { id, ownerId, deletedAt: null } });
+  if (!node) throw new Error("Not found");
+
+  await prisma.node.update({ where: { id }, data: { title: trimmed } });
+
+  revalidatePath("/");
+  revalidatePath(`/board/${id}`);
+  if (node.parentId) revalidatePath(`/board/${node.parentId}`);
+}
+
 export async function deleteNode(id: string) {
   const ownerId = await requireUserId();
   const node = await prisma.node.findFirst({

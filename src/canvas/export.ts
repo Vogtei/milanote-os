@@ -42,6 +42,8 @@ export async function exportBoardPng(
       selected: new Set(),
       hovered: null,
       editingId: null,
+      editingEntry: null,
+      renaming: null,
       marquee: null,
       palette,
       showGrid: false,

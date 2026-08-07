@@ -1,8 +1,11 @@
 import type { AnyItem, Camera, Item, NoteColor, Rect, Vec } from "@/canvas/types";
 import type { CanvasPalette } from "@/canvas/theme";
 import { viewportBounds } from "@/canvas/camera";
-import { HANDLES, handlePoint, itemBounds, rectsIntersect, unionBounds } from "@/canvas/geometry";
+import { boundsOfPoints, HANDLES, handlePoint, itemBounds, rectsIntersect, unionBounds } from "@/canvas/geometry";
 import { ellipsize, font, wrapText } from "@/canvas/text";
+import { resolveArrowEndpoints, type ItemLookup } from "@/canvas/arrowBinding";
+import { todoRows } from "@/canvas/todoLayout";
+import { containerTileHeight } from "@/canvas/containerLayout";
 import { coverRect, getImage } from "@/canvas/images";
 
 export type RenderState = {
@@ -22,6 +25,11 @@ export type RenderState = {
   /** Item currently edited through a DOM overlay — its text is skipped so the
    *  canvas doesn't draw a second copy underneath the live editor. */
   editingId: string | null;
+  /** The one to-do row currently being edited, if any — only that row's text
+   *  is skipped, not the rest of the card. */
+  editingEntry: { itemId: string; entryId: string } | null;
+  /** Folder/document item currently being renamed through a DOM overlay. */
+  renaming: string | null;
   marquee: Rect | null;
   palette: CanvasPalette;
   showGrid: boolean;
@@ -57,13 +65,16 @@ export function render(ctx: CanvasRenderingContext2D, state: RenderState) {
   ctx.scale(camera.z, camera.z);
   ctx.translate(camera.x, camera.y);
 
+  const lookup: ItemLookup = { getItem: (id) => byId.get(id) };
+  const byId = new Map(state.items.map((i) => [i.id, i]));
+
   const visible = viewportBounds(camera, size);
   for (const item of state.items) {
-    if (!rectsIntersect(itemBounds(item), visible)) continue;
-    drawItem(ctx, item, state);
+    if (!rectsIntersect(arrowAwareBounds(item, lookup), visible)) continue;
+    drawItem(ctx, item, state, lookup);
   }
 
-  drawSelection(ctx, state);
+  drawSelection(ctx, state, lookup);
 
   ctx.restore();
 
@@ -107,7 +118,7 @@ function withShadow(ctx: CanvasRenderingContext2D, palette: CanvasPalette, fn: (
   ctx.restore();
 }
 
-function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderState) {
+function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderState, lookup: ItemLookup) {
   switch (item.type) {
     case "note": return drawNote(ctx, item, state);
     case "text": return drawText(ctx, item, state);
@@ -119,7 +130,7 @@ function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderSta
     case "todo": return drawTodo(ctx, item, state);
     case "shape": return drawShape(ctx, item, state);
     case "draw": return drawStroke(ctx, item, state);
-    case "arrow": return drawArrow(ctx, item, state);
+    case "arrow": return drawArrow(ctx, item, state, lookup);
   }
 }
 
@@ -352,7 +363,7 @@ function formatSize(bytes: number): string {
 // is inside it underneath — the label sits outside the tile so long names
 // aren't clipped by it.
 function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState) {
-  const tileH = Math.max(24, item.h - 44);
+  const tileH = containerTileHeight(item);
   const tile = { x: item.x + item.w * 0.14, y: item.y, w: item.w * 0.72, h: tileH };
 
   ctx.fillStyle = state.palette.folderTile;
@@ -366,13 +377,19 @@ function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: R
   const cx = item.x + item.w / 2;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillStyle = state.palette.text;
-  ctx.font = font(13, 600);
-  ctx.fillText(
-    ellipsize(ctx, item.props.title || "Neuer Ordner", item.w, font(13, 600)),
-    cx,
-    item.y + tileH + 10,
-  );
+
+  // The label is drawn by the DOM rename input while it's being edited, same
+  // as note/text/todo text.
+  const renaming = state.renaming === item.id;
+  if (!renaming) {
+    ctx.fillStyle = state.palette.text;
+    ctx.font = font(13, 600);
+    ctx.fillText(
+      ellipsize(ctx, item.props.title || "Neuer Ordner", item.w, font(13, 600)),
+      cx,
+      item.y + tileH + 10,
+    );
+  }
 
   const count = state.boardCounts[item.props.nodeId] ?? 0;
   ctx.fillStyle = state.palette.textMuted;
@@ -384,7 +401,7 @@ function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: R
 // Same silhouette as the folder — sheet, then name, then length — so a board
 // full of containers reads as one family of cards.
 function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, state: RenderState) {
-  const sheetH = Math.max(24, item.h - 44);
+  const sheetH = containerTileHeight(item);
   const sheetW = sheetH * 0.78;
   const x = item.x + (item.w - sheetW) / 2;
   const y = item.y;
@@ -421,13 +438,17 @@ function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, sta
 
   const cx = item.x + item.w / 2;
   ctx.textBaseline = "top";
-  ctx.fillStyle = state.palette.text;
-  ctx.font = font(13, 600);
-  ctx.fillText(
-    ellipsize(ctx, item.props.title || "Dokument", item.w, font(13, 600)),
-    cx,
-    item.y + sheetH + 10,
-  );
+
+  const renaming = state.renaming === item.id;
+  if (!renaming) {
+    ctx.fillStyle = state.palette.text;
+    ctx.font = font(13, 600);
+    ctx.fillText(
+      ellipsize(ctx, item.props.title || "Dokument", item.w, font(13, 600)),
+      cx,
+      item.y + sheetH + 10,
+    );
+  }
 
   const words = countWords(item.props.content);
   ctx.fillStyle = state.palette.textMuted;
@@ -453,54 +474,50 @@ function drawTodo(ctx: CanvasRenderingContext2D, item: Item<"todo">, state: Rend
   roundRect(ctx, itemBounds(item), 8);
   ctx.stroke();
 
-  if (state.editingId === item.id) return;
-
-  let y = item.y + 16;
   if (item.props.title) {
     ctx.fillStyle = colors.text;
     ctx.font = font(14, 700);
     ctx.textBaseline = "top";
-    ctx.fillText(ellipsize(ctx, item.props.title, item.w - 28, font(14, 700)), item.x + 14, y);
-    y += 26;
+    ctx.fillText(ellipsize(ctx, item.props.title, item.w - 28, font(14, 700)), item.x + 14, item.y + 16);
   }
 
-  // An empty list still shows one row, so it's obvious where to type.
-  const rows = item.props.entries.length > 0
-    ? item.props.entries
-    : [{ id: "placeholder", text: "", done: false }];
+  const editing = state.editingEntry?.itemId === item.id ? state.editingEntry.entryId : null;
 
   ctx.font = font(13);
   ctx.textBaseline = "top";
-  for (const entry of rows) {
-    if (y > item.y + item.h - 18) break;
+  for (const row of todoRows(item)) {
+    const { entry, checkbox, text } = row;
+
     ctx.strokeStyle = withAlpha(colors.text, 0.35);
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.roundRect(item.x + 14, y, 15, 15, 4);
+    ctx.roundRect(checkbox.x, checkbox.y, checkbox.w, checkbox.h, 4);
     ctx.stroke();
     if (entry.done) {
       ctx.strokeStyle = colors.text;
       ctx.beginPath();
-      ctx.moveTo(item.x + 18, y + 8);
-      ctx.lineTo(item.x + 21, y + 11.5);
-      ctx.lineTo(item.x + 25.5, y + 4);
+      ctx.moveTo(checkbox.x + 4, checkbox.y + 7.5);
+      ctx.lineTo(checkbox.x + 7, checkbox.y + 11);
+      ctx.lineTo(checkbox.x + 11.5, checkbox.y + 4);
       ctx.stroke();
     }
 
+    // The row being edited gets its text from the DOM overlay instead.
+    if (entry.id === editing) continue;
+
     const empty = !entry.text;
     ctx.fillStyle = empty || entry.done ? withAlpha(colors.text, 0.45) : colors.text;
-    const label = ellipsize(ctx, entry.text || "Aufgabe hinzufügen…", item.w - 52, font(13));
-    ctx.fillText(label, item.x + 38, y + 1);
+    const label = ellipsize(ctx, entry.text || "Aufgabe hinzufügen…", text.w, font(13));
+    ctx.fillText(label, text.x, text.y + 2);
     if (entry.done && entry.text) {
       const width = ctx.measureText(label).width;
       ctx.strokeStyle = withAlpha(colors.text, 0.45);
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(item.x + 38, y + 9);
-      ctx.lineTo(item.x + 38 + width, y + 9);
+      ctx.moveTo(text.x, text.y + 10);
+      ctx.lineTo(text.x + width, text.y + 10);
       ctx.stroke();
     }
-    y += 26;
   }
 }
 
@@ -652,9 +669,18 @@ function drawStroke(ctx: CanvasRenderingContext2D, item: Item<"draw">, state: Re
   ctx.restore();
 }
 
-function drawArrow(ctx: CanvasRenderingContext2D, item: Item<"arrow">, state: RenderState) {
-  const start = { x: item.x, y: item.y };
-  const end = item.props.end;
+/** Bounding box used for culling and the selection outline — resolved
+ *  against live bindings so a connected arrow is never culled from view (or
+ *  outlined in the wrong place) just because its stored x/y/end drifted from
+ *  where the target actually is now. */
+function arrowAwareBounds(item: AnyItem, lookup: ItemLookup): Rect {
+  if (item.type !== "arrow") return itemBounds(item);
+  const { start, end } = resolveArrowEndpoints(lookup, item);
+  return boundsOfPoints([start, end]);
+}
+
+function drawArrow(ctx: CanvasRenderingContext2D, item: Item<"arrow">, state: RenderState, lookup: ItemLookup) {
+  const { start, end } = resolveArrowEndpoints(lookup, item);
   ctx.save();
   ctx.strokeStyle = strokeColor(state.palette, item.props.color);
   ctx.fillStyle = ctx.strokeStyle;
@@ -683,7 +709,7 @@ function drawArrow(ctx: CanvasRenderingContext2D, item: Item<"arrow">, state: Re
   ctx.restore();
 }
 
-function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState) {
+function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState, lookup: ItemLookup) {
   const { palette, camera } = state;
   // Outline widths are specified in screen pixels, so they're divided by the
   // zoom to survive the camera transform at any scale.
@@ -695,7 +721,7 @@ function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState) {
       ctx.strokeStyle = palette.accent;
       ctx.globalAlpha = 0.45;
       ctx.lineWidth = hairline;
-      roundRect(ctx, inflate(itemBounds(item), 2 / camera.z), 8 / camera.z);
+      roundRect(ctx, inflate(arrowAwareBounds(item, lookup), 2 / camera.z), 8 / camera.z);
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
@@ -704,14 +730,42 @@ function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState) {
   const selected = state.items.filter((i) => state.selected.has(i.id));
   if (selected.length === 0) return;
 
+  // A single selected arrow gets its own start/end/midpoint dots instead of
+  // the generic box — dragging start or end rebinds that end (see
+  // BoardEditor.arrowEndpointAt); the midpoint is a plain visual mid-marker.
+  if (selected.length === 1 && selected[0].type === "arrow") {
+    const { start, end } = resolveArrowEndpoints(lookup, selected[0]);
+    const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = hairline;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    const r = HANDLE_SIZE / 1.6 / camera.z;
+    for (const point of [start, end]) {
+      ctx.fillStyle = palette.handleFill;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.fillStyle = palette.accent;
+    ctx.beginPath();
+    ctx.arc(mid.x, mid.y, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
   ctx.strokeStyle = palette.accent;
   ctx.lineWidth = hairline;
   for (const item of selected) {
-    roundRect(ctx, inflate(itemBounds(item), 2 / camera.z), 8 / camera.z);
+    roundRect(ctx, inflate(arrowAwareBounds(item, lookup), 2 / camera.z), 8 / camera.z);
     ctx.stroke();
   }
 
-  const bounds = unionBounds(selected.map(itemBounds));
+  const bounds = unionBounds(selected.map((i) => arrowAwareBounds(i, lookup)));
   if (selected.length > 1) {
     ctx.setLineDash([4 / camera.z, 4 / camera.z]);
     ctx.strokeRect(bounds.x, bounds.y, bounds.w, bounds.h);

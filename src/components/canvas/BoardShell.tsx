@@ -37,7 +37,16 @@ export function BoardShell({
   canComment: boolean;
   boardCounts: Record<string, number>;
 }) {
-  const editor = useMemo(() => new BoardEditor(initialDoc), [initialDoc]);
+  // Keyed on boardId, not initialDoc: after the first mount, editor.store is
+  // the source of truth, not this prop. A server action anywhere on the page
+  // (renaming a nested board, creating one) can trigger router.refresh(),
+  // which re-runs the page and hands down a brand-new initialDoc object on
+  // every such call — keying the memo on that reference would silently
+  // recreate the whole editor and throw away live state (selection, camera,
+  // anything not yet flushed by autosave) each time. boardId only changes
+  // when this really is a different board.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const editor = useMemo(() => new BoardEditor(initialDoc), [boardId]);
 
   useEffect(() => {
     editor.setReadonly(readonly);

@@ -87,8 +87,12 @@ export function runTool(
       // item there immediately instead of making the user click twice.
       if (at && (id === "note" || id === "text" || id === "todo" || id === "document")) {
         const item = editor.createItem(id, at);
+        if (id === "todo") {
+          editor.beginTodoEntry(item.id);
+          return;
+        }
         editor.setSelection([item.id]);
-        if (id === "note" || id === "text" || id === "todo") editor.setEditing(item.id);
+        if (id === "note" || id === "text") editor.setEditing(item.id);
         return;
       }
       editor.setTool(id);

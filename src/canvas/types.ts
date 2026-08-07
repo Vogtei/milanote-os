@@ -54,6 +54,12 @@ export const SHAPE_KINDS: ShapeKind[] = [
 
 export type TodoEntry = { id: string; text: string; done: boolean };
 
+/** `anchor` is fractional (0..1 on each axis) within the target item's own
+ *  bounds at the moment of binding, so it re-projects correctly however the
+ *  target later moves or resizes — a fixed world offset would drift the
+ *  instant the target changed size. */
+export type ArrowBinding = { itemId: string; anchor: Vec };
+
 export type ItemProps = {
   note: { text: string; color: NoteColor };
   text: { text: string; size: number; color: NoteColor };
@@ -69,7 +75,21 @@ export type ItemProps = {
   shape: { kind: ShapeKind; color: NoteColor; fill: boolean };
   /** `highlighter` strokes draw wide and translucent, under everything else. */
   draw: { points: Vec[]; color: NoteColor; width: number; highlighter: boolean };
-  arrow: { end: Vec; color: NoteColor; width: number; dashed: boolean; heads: "end" | "both" | "none" };
+  arrow: {
+    end: Vec;
+    color: NoteColor;
+    width: number;
+    dashed: boolean;
+    heads: "end" | "both" | "none";
+    /** When an end is dropped onto another item, it binds there instead of
+     *  to a fixed point — `x`/`y`/`end` above still hold the last resolved
+     *  position, kept in sync as a fallback for whichever tools (export,
+     *  duplicate) don't resolve bindings, but the bound end is drawn and
+     *  hit-tested from the live target's bounds every frame instead, so it
+     *  tracks the target across moves and resizes. */
+    startBinding?: ArrowBinding;
+    endBinding?: ArrowBinding;
+  };
 };
 
 export type NoteColor =

@@ -11,8 +11,12 @@ import {
   zoomTo,
 } from "@/canvas/camera";
 import type { HandleId } from "@/canvas/geometry";
+import { todoRowAt } from "@/canvas/todoLayout";
+import { containerLabelRect } from "@/canvas/containerLayout";
+import { anchorFor, anchorPoint, resolveArrowEndpoints } from "@/canvas/arrowBinding";
 import {
   boundsOfPoints,
+  distance,
   distanceToSegment,
   HANDLES,
   handlePoint,
@@ -54,7 +58,8 @@ type Interaction =
   | { kind: "draw"; id: string }
   | { kind: "arrow"; id: string }
   | { kind: "createShape"; id: string; origin: Vec }
-  | { kind: "erase" };
+  | { kind: "erase" }
+  | { kind: "arrowEndpoint"; itemId: string; end: "start" | "end" };
 
 const DRAG_THRESHOLD = 3;
 const HANDLE_HIT = 10;
@@ -86,6 +91,8 @@ export class BoardEditor {
   private interaction: Interaction = { kind: "none" };
   private hovered: string | null = null;
   private editingId: string | null = null;
+  private editingEntry: { itemId: string; entryId: string } | null = null;
+  private renaming: string | null = null;
   private spaceDown = false;
   private listeners = new Set<(event: EditorEvent) => void>();
   private color: NoteColor = "yellow";
@@ -123,6 +130,8 @@ export class BoardEditor {
   getTool() { return this.tool; }
   getHovered() { return this.hovered; }
   getEditingId() { return this.editingId; }
+  getEditingEntry() { return this.editingEntry; }
+  getRenaming() { return this.renaming; }
   getColor() { return this.color; }
   getShapeKind() { return this.shapeKind; }
   getStrokeWidth() { return this.strokeWidth; }
@@ -172,6 +181,8 @@ export class BoardEditor {
     if (readonly) {
       this.selection.clear();
       this.editingId = null;
+      this.editingEntry = null;
+      this.renaming = null;
       this.tool = "select";
     }
     this.changed();
@@ -216,6 +227,7 @@ export class BoardEditor {
 
   setEditing(id: string | null) {
     this.editingId = id;
+    this.editingEntry = null;
     this.changed();
   }
 
@@ -269,7 +281,8 @@ export class BoardEditor {
       return false;
     }
     if (item.type === "arrow") {
-      return distanceToSegment(point, { x: item.x, y: item.y }, item.props.end) <= slop;
+      const { start, end } = resolveArrowEndpoints(this.store, item);
+      return distanceToSegment(point, start, end) <= slop;
     }
     if (item.type === "shape" && !item.props.fill) {
       // Unfilled shapes are grabbed by their outline, not their empty middle.
@@ -293,12 +306,30 @@ export class BoardEditor {
     return null;
   }
 
+  /** A selected arrow gets its own start/end circles instead of the generic
+   *  8-box — dragging one rebinds that end to whatever it's dropped on. */
+  private arrowEndpointAt(screenPoint: Vec): "start" | "end" | null {
+    if (this.selection.size !== 1 || this.readonly) return null;
+    const item = this.getSelectedItems()[0];
+    if (!item || item.type !== "arrow" || item.locked) return null;
+    const { start, end } = resolveArrowEndpoints(this.store, item);
+    const startScreen = worldToScreen(this.camera, start);
+    const endScreen = worldToScreen(this.camera, end);
+    if (distance(startScreen, screenPoint) <= HANDLE_HIT + 4) return "start";
+    if (distance(endScreen, screenPoint) <= HANDLE_HIT + 4) return "end";
+    return null;
+  }
+
   // -------------------------------------------------------------- creating
 
   createItem<T extends ItemType>(type: T, world: Vec, props?: Partial<AnyItem["props"]>): AnyItem {
     const size = DEFAULT_SIZES[type];
     const base = defaultProps(type) as Record<string, unknown>;
-    if ("color" in base && type !== "text") base.color = this.color;
+    // The armed pen colour applies to things that draw with it (notes,
+    // shapes, strokes, arrows). A to-do's card tint is a separate choice made
+    // through the selection toolbar afterwards, so it keeps its own default —
+    // white, matching the reference — regardless of what colour is armed.
+    if ("color" in base && type !== "text" && type !== "todo") base.color = this.color;
     const item = {
       id: crypto.randomUUID(),
       type,
@@ -322,12 +353,40 @@ export class BoardEditor {
 
   duplicateSelection() {
     if (this.readonly || this.selection.size === 0) return;
-    const copies: AnyItem[] = this.getSelectedItems().map((item) => ({
-      ...item,
-      id: crypto.randomUUID(),
-      x: item.x + 24,
-      y: item.y + 24,
-    }));
+    const OFFSET = 24;
+    const copies: AnyItem[] = this.getSelectedItems().map((item) => {
+      const id = crypto.randomUUID();
+      if (item.type === "draw") {
+        return {
+          ...item,
+          id,
+          x: item.x + OFFSET,
+          y: item.y + OFFSET,
+          props: { ...item.props, points: item.props.points.map((p) => ({ x: p.x + OFFSET, y: p.y + OFFSET })) },
+        };
+      }
+      if (item.type === "arrow") {
+        // Bindings aren't copied: the resolved (not stored) position is what
+        // moves, and a bound end ignores its stored coordinates entirely, so
+        // carrying the binding over would leave that end snapped back onto
+        // the original's target — invisibly undoing the offset for exactly
+        // the end a viewer would expect to have moved.
+        const { start, end } = resolveArrowEndpoints(this.store, item);
+        return {
+          ...item,
+          id,
+          x: start.x + OFFSET,
+          y: start.y + OFFSET,
+          props: {
+            ...item.props,
+            end: { x: end.x + OFFSET, y: end.y + OFFSET },
+            startBinding: undefined,
+            endBinding: undefined,
+          },
+        };
+      }
+      return { ...item, id, x: item.x + OFFSET, y: item.y + OFFSET };
+    });
     this.store.transact(() => {
       for (const copy of copies) this.store.put(copy);
     });
@@ -344,7 +403,19 @@ export class BoardEditor {
       return;
     }
 
+    // Every one of these already syncs continuously via onChange (see
+    // TextOverlay/TodoEntryOverlay/RenameOverlay), so clearing them here never
+    // loses anything — but it still has to call changed(), or the DOM overlay
+    // can go stale until some unrelated later event happens to repaint.
     if (this.editingId) this.setEditing(null);
+    if (this.editingEntry) {
+      this.editingEntry = null;
+      this.changed();
+    }
+    if (this.renaming) {
+      this.renaming = null;
+      this.changed();
+    }
 
     if (!this.readonly) {
       if (this.tool === "eraser") {
@@ -354,6 +425,13 @@ export class BoardEditor {
       if (this.tool === "draw") return this.beginDraw(world);
       if (this.tool === "arrow") return this.beginArrow(world);
       if (PLACING_TOOLS.includes(this.tool)) return this.placeWithTool(world);
+    }
+
+    const arrowEnd = this.arrowEndpointAt(screen);
+    if (arrowEnd) {
+      const item = this.getSelectedItems()[0];
+      this.interaction = { kind: "arrowEndpoint", itemId: item.id, end: arrowEnd };
+      return;
     }
 
     const handle = this.handleAt(screen);
@@ -380,6 +458,33 @@ export class BoardEditor {
       return;
     }
 
+    // A checkbox reacts on the first click, whether or not the card was
+    // already selected — that's how every to-do list behaves, and waiting
+    // for a select-then-click would make ticking things off tedious.
+    if (!this.readonly && !opts.shift && !hit.locked && hit.type === "todo") {
+      const rowHit = todoRowAt(hit, world);
+      if (rowHit?.zone === "checkbox" && !rowHit.row.isPlaceholder) {
+        this.setSelection([hit.id]);
+        this.toggleEntryDone(hit.id, rowHit.row.entry.id);
+        return;
+      }
+    }
+
+    // A folder/document's name is its rename target — clicking directly on it
+    // opens rename immediately, the way a file manager's label click does.
+    // Double-clicking the *tile* still opens the board/document as normal;
+    // this only fires for the label underneath it.
+    if (
+      !this.readonly &&
+      !opts.shift &&
+      !hit.locked &&
+      (hit.type === "board" || hit.type === "document") &&
+      rectContains(containerLabelRect(hit), world)
+    ) {
+      this.beginRename(hit.id);
+      return;
+    }
+
     if (opts.shift) {
       const next = new Set(this.selection);
       if (next.has(hit.id)) next.delete(hit.id);
@@ -390,6 +495,11 @@ export class BoardEditor {
 
     if (!this.selection.has(hit.id)) this.setSelection([hit.id]);
     if (this.readonly || hit.locked) return;
+    // A bound arrow's shape is derived from its target(s), not draggable as a
+    // whole — only its free end(s) move, via the handle check above. Without
+    // this, dragging the body would silently detach it from what it was
+    // pointing at, which is never what the click meant.
+    if (hit.type === "arrow" && (hit.props.startBinding || hit.props.endBinding)) return;
     this.interaction = { kind: "maybeDrag", origin: world, itemId: hit.id, additive: false };
   }
 
@@ -488,9 +598,40 @@ export class BoardEditor {
       case "arrow": {
         const item = this.store.getItem(this.interaction.id);
         if (!item || item.type !== "arrow") return;
+        const target = this.bindableTargetAt(world, item.id);
+        const end = target ? anchorPoint(target, anchorFor(target, world)) : world;
         this.store.transact(() => {
-          this.store.updateProps(item.id, { end: world } as never);
-          this.store.update(item.id, boundsOfPoints([{ x: item.x, y: item.y }, world]));
+          this.store.updateProps(item.id, {
+            end,
+            endBinding: target ? { itemId: target.id, anchor: anchorFor(target, world) } : undefined,
+          } as never);
+          // item.x/y is the start point itself, not a bounding-box corner —
+          // it must stay exactly what beginArrow set it to. w/h are only an
+          // approximate box for legacy/culling purposes, never re-derived
+          // into x/y (an arrow drawn up-and-left previously got its start
+          // silently overwritten with the box's top-left corner here).
+          this.store.update(item.id, { w: Math.abs(end.x - item.x), h: Math.abs(end.y - item.y) });
+        });
+        return;
+      }
+      case "arrowEndpoint": {
+        const { itemId, end } = this.interaction;
+        const item = this.store.getItem(itemId);
+        if (!item || item.type !== "arrow") return;
+        const target = this.bindableTargetAt(world, itemId);
+        const anchor = target ? anchorFor(target, world) : null;
+        const point = target && anchor ? anchorPoint(target, anchor) : world;
+        const binding = target && anchor ? { itemId: target.id, anchor } : undefined;
+        const other = resolveArrowEndpoints(this.store, item)[end === "start" ? "end" : "start"];
+        const [newStart, newEnd] = end === "start" ? [point, other] : [other, point];
+        this.store.transact(() => {
+          if (end === "start") {
+            this.store.update(itemId, { x: point.x, y: point.y });
+            this.store.updateProps(itemId, { startBinding: binding } as never);
+          } else {
+            this.store.updateProps(itemId, { end: point, endBinding: binding } as never);
+          }
+          this.store.update(itemId, { w: Math.abs(newEnd.x - newStart.x), h: Math.abs(newEnd.y - newStart.y) });
         });
         return;
       }
@@ -577,14 +718,114 @@ export class BoardEditor {
     this.interaction = { kind: "draw", id: item.id };
   }
 
+  toggleEntryDone(itemId: string, entryId: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || item.type !== "todo") return;
+    const entries = item.props.entries.map((e) => (e.id === entryId ? { ...e, done: !e.done } : e));
+    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+  }
+
+  updateEntryText(itemId: string, entryId: string, text: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || item.type !== "todo") return;
+    const entries = item.props.entries.map((e) => (e.id === entryId ? { ...e, text } : e));
+    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+  }
+
+  /** Enter in a row: commit it and open a fresh empty row right after it. */
+  addEntryAfter(itemId: string, entryId: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || item.type !== "todo") return;
+    const index = item.props.entries.findIndex((e) => e.id === entryId);
+    const entry = { id: crypto.randomUUID(), text: "", done: false };
+    const entries = [...item.props.entries];
+    entries.splice(index + 1, 0, entry);
+    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+    this.editingEntry = { itemId, entryId: entry.id };
+    this.changed();
+  }
+
+  /** Backspace on an empty row: remove it and drop back into the row above,
+   *  at the end of its text — the usual "merge into previous line" feel. */
+  removeEntryAndFocusPrevious(itemId: string, entryId: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || item.type !== "todo") return;
+    const index = item.props.entries.findIndex((e) => e.id === entryId);
+    if (index === -1) return;
+    const entries = item.props.entries.filter((e) => e.id !== entryId);
+    this.store.transact(() => this.store.updateProps(itemId, { entries } as never));
+    this.editingEntry = index > 0 ? { itemId, entryId: entries[index - 1].id } : null;
+    this.changed();
+  }
+
+  /**
+   * Opens a row for editing. `entryId` names a real entry, or is omitted /
+   * "placeholder" to mean "the empty row" — which doesn't exist in the
+   * document yet, so this is also how a to-do gets its first real entry.
+   */
+  beginTodoEntry(itemId: string, entryId?: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || item.type !== "todo" || this.readonly) return;
+    let target = entryId;
+    if (!target || target === "placeholder" || item.props.entries.length === 0) {
+      const entry = { id: crypto.randomUUID(), text: "", done: false };
+      this.store.transact(() =>
+        this.store.updateProps(itemId, { entries: [...item.props.entries, entry] } as never),
+      );
+      target = entry.id;
+    }
+    this.setSelection([itemId]);
+    this.editingEntry = { itemId, entryId: target };
+    this.changed();
+  }
+
+  beginRename(itemId: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || this.readonly || (item.type !== "board" && item.type !== "document")) return;
+    this.setSelection([itemId]);
+    this.renaming = itemId;
+    this.changed();
+  }
+
+  endRename() {
+    this.renaming = null;
+    this.changed();
+  }
+
+  renameItem(itemId: string, title: string) {
+    const item = this.store.getItem(itemId);
+    if (!item || (item.type !== "board" && item.type !== "document")) return;
+    this.store.transact(() => this.store.updateProps(itemId, { title } as never));
+  }
+
   private beginArrow(world: Vec) {
+    // Starting a drag from on top of an item binds the tail end to it
+    // immediately — matches every diagramming tool's "drag from the box"
+    // gesture, rather than requiring a separate step to connect afterwards.
+    const target = this.bindableTargetAt(world, "");
+    const start = target ? anchorPoint(target, anchorFor(target, world)) : world;
     const item = this.createItem("arrow", world, {
-      end: world,
+      end: start,
       color: this.color,
       width: Math.max(2, this.strokeWidth / 2),
+      startBinding: target ? { itemId: target.id, anchor: anchorFor(target, world) } : undefined,
     });
-    this.store.transact(() => this.store.update(item.id, { x: world.x, y: world.y, w: 0, h: 0 }));
+    this.store.transact(() =>
+      this.store.update(item.id, { x: start.x, y: start.y, w: 0, h: 0 }),
+    );
     this.interaction = { kind: "arrow", id: item.id };
+  }
+
+  /** Topmost non-arrow/draw item whose bounds contain `point`, ignoring
+   *  `excludeId` — the pool of things an arrow end can bind to. */
+  private bindableTargetAt(point: Vec, excludeId: string): AnyItem | null {
+    const items = this.store.getItems();
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (item.id === excludeId || item.type === "arrow" || item.type === "draw") continue;
+      if (rectContains(itemBounds(item), point)) return item;
+    }
+    return null;
   }
 
   private placeWithTool(world: Vec) {
@@ -598,8 +839,12 @@ export class BoardEditor {
     }
     const item = this.createItem(this.tool as "note" | "text" | "todo" | "document", world);
     this.setTool("select");
+    if (item.type === "todo") {
+      this.beginTodoEntry(item.id);
+      return;
+    }
     this.setSelection([item.id]);
-    if (item.type === "note" || item.type === "text" || item.type === "todo") {
+    if (item.type === "note" || item.type === "text") {
       this.emit({ type: "requestEdit", itemId: item.id });
     }
   }
@@ -624,7 +869,11 @@ export class BoardEditor {
     if (hit.type === "image") return this.emit({ type: "requestImage", itemId: hit.id });
     // A document is too long-form for the canvas; it opens in its own window.
     if (hit.type === "document") return this.emit({ type: "requestDocument", itemId: hit.id });
-    if (hit.type === "note" || hit.type === "text" || hit.type === "todo") {
+    if (hit.type === "todo") {
+      const rowHit = todoRowAt(hit, world);
+      return this.beginTodoEntry(hit.id, rowHit && !rowHit.row.isPlaceholder ? rowHit.row.entry.id : undefined);
+    }
+    if (hit.type === "note" || hit.type === "text") {
       this.emit({ type: "requestEdit", itemId: hit.id });
     }
   }

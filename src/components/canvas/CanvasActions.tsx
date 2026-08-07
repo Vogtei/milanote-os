@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { BoardEditor } from "@/canvas/editor";
 import type { Vec } from "@/canvas/types";
 import { createNode } from "@/lib/nodes";
@@ -47,7 +46,6 @@ export function CanvasActionsProvider({
   boardId: string;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const [prompt, setPrompt] = useState<Prompt>(null);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -87,7 +85,6 @@ export function CanvasActionsProvider({
           editor.store.transact(() =>
             editor.store.updateProps(item.id, { nodeId: node.id, title: node.title } as never),
           );
-          router.refresh();
         })
         .catch((error) => {
           console.error("[board] could not create nested board", error);
@@ -95,7 +92,7 @@ export function CanvasActionsProvider({
         })
         .finally(() => setBusy(false));
     },
-    [editor, boardId, router, target],
+    [editor, boardId, target],
   );
 
   // A new picture starts as an empty frame on the board; double-clicking it

@@ -113,6 +113,14 @@ export function CanvasRail({
       return;
     }
     setPopover(null);
+    // Every placement tool is drag-only now — dropping it onto the board is
+    // what creates it (see runTool's `at`-driven branches, fed by onDragStart
+    // below and BoardShell's onDrop). A click here would otherwise create or
+    // open something at the viewport centre with no further gesture, which
+    // is exactly what this guards against. Select and arrow are the only
+    // exceptions: arrow has to be armed so a drag *on the canvas* can draw
+    // it, and select isn't a placement tool at all.
+    if (tool.id !== "select" && tool.id !== "arrow") return;
     runTool(editor, actions, tool.id);
   };
 
@@ -393,7 +401,7 @@ export function RailButton({
             }
           : undefined
       }
-      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color,transform] duration-150 ease-out hover:translate-x-[3px] active:translate-x-[8px] active:duration-75 ${
+      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color,transform] duration-[220ms] ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:translate-x-[3px] active:translate-x-[8px] active:duration-[120ms] active:ease-[cubic-bezier(0.4,0,0.2,1)] ${
         dragToolId ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       } ${
         active

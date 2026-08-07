@@ -125,25 +125,6 @@ export function BoardTopBar({
           <IconBtn label="Suchen" active={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
             <SearchIcon />
           </IconBtn>
-          <IconBtn label="Kommentare" onClick={onToggleComments}>
-            <CommentIcon />
-          </IconBtn>
-
-          <div ref={exportRef} className="relative">
-            <IconBtn label="Exportieren" active={exportOpen} onClick={() => setExportOpen((v) => !v)}>
-              <ExportImageIcon />
-            </IconBtn>
-            {exportOpen && (
-              <ExportMenu
-                onExport={(format) => {
-                  setExportOpen(false);
-                  onExport(format);
-                }}
-              />
-            )}
-          </div>
-
-          {chrome.share}
 
           <div ref={zoomRef} className="relative">
             <button
@@ -190,6 +171,33 @@ export function BoardTopBar({
           </IconBtn>
         </div>
       </TopBar>
+
+      {/* Second row, Milanote-inspired: client-facing actions — commenting,
+          sharing, exporting to send — sit apart from the personal/editing
+          tools above. Docked flush under TopBar (same top offset as its own
+          height, no gap) and rounded only at the bottom so it reads as one
+          continuous panel with row one, not a separate floating pill. */}
+      <div className="vos-panel vos-panel-shadow fixed right-2.5 top-[52px] z-[290] flex items-center gap-0.5 rounded-b-2xl px-1.5 pb-1.5 pt-1">
+        <IconBtn label="Kommentare" onClick={onToggleComments}>
+          <CommentIcon />
+        </IconBtn>
+
+        <div ref={exportRef} className="relative">
+          <IconBtn label="Exportieren" active={exportOpen} onClick={() => setExportOpen((v) => !v)}>
+            <ExportImageIcon />
+          </IconBtn>
+          {exportOpen && (
+            <ExportMenu
+              onExport={(format) => {
+                setExportOpen(false);
+                onExport(format);
+              }}
+            />
+          )}
+        </div>
+
+        {chrome.share}
+      </div>
 
       {searchOpen && <SearchPanel editor={editor} onClose={() => setSearchOpen(false)} />}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} user={chrome.user} />

@@ -70,7 +70,7 @@ export function ItemTrashPanel({
   const entries = editor.getTrashedItems();
 
   return (
-    <div className="vos-panel vos-panel-shadow fixed right-2.5 top-[100px] z-[300] flex max-h-[calc(100%-118px)] w-80 flex-col rounded-2xl">
+    <div className="vos-panel fixed left-0 top-[52px] bottom-0 z-[300] flex w-80 flex-col border-r border-[var(--vos-border)]">
       <div className="flex items-center justify-between border-b border-[var(--vos-border)] px-3.5 py-3">
         <span className="text-[13px] font-semibold text-[var(--vos-text-strong)]">Papierkorb</span>
         <button

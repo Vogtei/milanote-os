@@ -1,6 +1,6 @@
 // The Vellum brand mark — an "open folio" glyph (two page-like petals
 // meeting at a point, reading as both an open notebook and a V) inside a
-// squircle. Light mode: black glyph on a white squircle. Dark mode: the
+// plain circle. Light mode: black glyph on a white circle. Dark mode: the
 // inverse. Both variants render at once; globals.css's .vellum-mark-light/
 // .vellum-mark-dark rules (keyed off the same data-theme attribute every
 // other token here uses) toggle which one is visible, since Tailwind's
@@ -11,7 +11,7 @@ const GLYPH_PATH =
 function VellumGlyph({ className, fill }: { className: string; fill: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <rect width="100" height="100" rx="22" fill={fill === "#000000" ? "#ffffff" : "#000000"} />
+      <circle cx="50" cy="50" r="50" fill={fill === "#000000" ? "#ffffff" : "#000000"} />
       <path d={GLYPH_PATH} fill={fill} />
     </svg>
   );

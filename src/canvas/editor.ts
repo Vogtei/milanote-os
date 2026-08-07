@@ -359,8 +359,17 @@ export class BoardEditor {
   deleteSelection() {
     if (this.readonly || this.selection.size === 0) return;
     const ids = [...this.selection];
-    this.store.transact(() => this.store.remove(ids));
+    this.store.trashItems(ids);
     this.setSelection([]);
+  }
+
+  getTrashedItems() {
+    return this.store.getTrashedItems();
+  }
+
+  restoreItem(id: string) {
+    if (this.readonly) return;
+    this.store.restoreItem(id);
   }
 
   duplicateSelection() {
@@ -716,7 +725,7 @@ export class BoardEditor {
       .getItems()
       .filter((item) => (item.type === "draw" || item.type === "arrow") && this.hitsItem(item, world))
       .map((item) => item.id);
-    if (doomed.length > 0) this.store.transact(() => this.store.remove(doomed));
+    if (doomed.length > 0) this.store.trashItems(doomed);
   }
 
   private beginDraw(world: Vec) {

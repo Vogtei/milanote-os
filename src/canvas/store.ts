@@ -1,5 +1,9 @@
-import type { AnyItem, Doc } from "@/canvas/types";
+import type { AnyItem, Doc, TrashEntry } from "@/canvas/types";
 import { emptyDoc } from "@/canvas/types";
+
+/** How many recently-deleted items the per-board trash keeps before the
+ *  oldest is silently dropped. */
+const TRASH_LIMIT = 15;
 
 // Document state with undo/redo. History is stored as inverse patches (only
 // the items a change actually touched) rather than whole-document snapshots,
@@ -113,6 +117,7 @@ export class BoardStore {
     this.record(item.id);
     const isNew = !(item.id in this.doc.items);
     this.doc = {
+      ...this.doc,
       items: { ...this.doc.items, [item.id]: item },
       order: isNew ? [...this.doc.order, item.id] : this.doc.order,
     };
@@ -153,8 +158,44 @@ export class BoardStore {
       delete items[id];
     }
     const removed = new Set(present);
-    this.doc = { items, order: this.doc.order.filter((id) => !removed.has(id)) };
+    this.doc = { ...this.doc, items, order: this.doc.order.filter((id) => !removed.has(id)) };
     if (this.depth === 0) this.emit();
+  }
+
+  getTrashedItems(): TrashEntry[] {
+    return this.doc.trashedItems;
+  }
+
+  /** Captures each item as it is now, then removes it the normal (undo-
+   *  tracked) way. Deliberately outside any transaction: the trash list is a
+   *  separate, persistent record, not an undo step — undoing the deletion
+   *  brings the item back on the canvas but leaves its trash entry in place,
+   *  same as Milanote's own recycle bin. */
+  trashItems(ids: string[]) {
+    const present = ids.filter((id) => id in this.doc.items);
+    if (present.length === 0) return;
+    const entries: TrashEntry[] = present.map((id) => ({
+      item: this.doc.items[id],
+      deletedAt: new Date().toISOString(),
+    }));
+    this.doc = {
+      ...this.doc,
+      trashedItems: [...entries, ...this.doc.trashedItems].slice(0, TRASH_LIMIT),
+    };
+    this.transact(() => this.remove(present));
+  }
+
+  /** Puts a trashed item back on the canvas at its original position, on top
+   *  of the paint order. Not undo-tracked, mirroring trashItems(). */
+  restoreItem(id: string) {
+    const entry = this.doc.trashedItems.find((e) => e.item.id === id);
+    if (!entry) return;
+    this.doc = {
+      items: { ...this.doc.items, [id]: entry.item },
+      order: [...this.doc.order, id],
+      trashedItems: this.doc.trashedItems.filter((e) => e.item.id !== id),
+    };
+    this.emit();
   }
 
   /** Moves `ids` to the top of the paint order, preserving their relative order. */
@@ -182,7 +223,7 @@ export class BoardStore {
       if (item === null) delete items[id];
       else items[id] = item;
     }
-    this.doc = { items, order };
+    this.doc = { ...this.doc, items, order };
   }
 
   canUndo() {

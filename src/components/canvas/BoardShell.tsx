@@ -17,6 +17,7 @@ import { BoardTopBar, type BoardChrome, type ExportFormat } from "@/components/c
 import { DRAG_MIME, SHAPE_KIND_MIME } from "@/components/canvas/tools";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
+import { ItemTrashPanel } from "@/components/canvas/ItemTrashPanel";
 import { CommentPins } from "@/components/canvas/CommentPins";
 import { listComments, type Comment } from "@/lib/comments";
 import { ExitPresentIcon } from "@/components/icons/VosIcons";
@@ -103,6 +104,7 @@ function BoardSurface({
   const actions = useCanvasActions();
   const { theme } = useTheme();
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [itemTrashOpen, setItemTrashOpen] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const [presenting, setPresenting] = useState(false);
@@ -239,12 +241,23 @@ function BoardSurface({
             editor={editor}
             chrome={chrome}
             onExport={onExport}
-            onToggleComments={() => setCommentsOpen((v) => !v)}
+            onToggleComments={() => {
+              setItemTrashOpen(false);
+              setCommentsOpen((v) => !v);
+            }}
             onPresent={() => setPresenting(true)}
             saveState={saveState}
           />
 
-          <CanvasRail editor={editor} canComment={canComment} />
+          <CanvasRail
+            editor={editor}
+            canComment={canComment}
+            trashOpen={itemTrashOpen}
+            onToggleTrash={() => {
+              setCommentsOpen(false);
+              setItemTrashOpen((v) => !v);
+            }}
+          />
           <SelectionToolbar editor={editor} />
           <MobileBar editor={editor} />
 
@@ -257,6 +270,11 @@ function BoardSurface({
             comments={comments}
             open={commentsOpen}
             onClose={() => setCommentsOpen(false)}
+          />
+          <ItemTrashPanel
+            editor={editor}
+            open={itemTrashOpen}
+            onClose={() => setItemTrashOpen(false)}
           />
         </>
       )}

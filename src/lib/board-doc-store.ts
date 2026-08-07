@@ -28,15 +28,23 @@ export async function readDoc(nodeId: string): Promise<Doc> {
   }
 
   if (typeof parsed === "object" && parsed !== null && (parsed as Envelope).v === DOC_VERSION) {
-    return migrateNoteBlocks((parsed as Envelope).doc);
+    return withTrashDefault(migrateNoteBlocks((parsed as Envelope).doc));
   }
 
   // Pre-swap board: convert on read. The new format is written back on the
   // next save, so this runs at most once per board that's still being edited —
   // but it stays in place, because a board nobody touches is never rewritten.
-  if (looksLikeTldrawSnapshot(parsed)) return migrateTldrawSnapshot(parsed);
+  if (looksLikeTldrawSnapshot(parsed)) return withTrashDefault(migrateTldrawSnapshot(parsed));
 
   return emptyDoc();
+}
+
+/** `trashedItems` shipped after DOC_VERSION 2 was already in wide use —
+ *  bumping the version to gate it would fall every existing board through to
+ *  the tldraw-snapshot branch (and lose its content) instead of just this one
+ *  field, so boards saved before this field existed default it here instead. */
+function withTrashDefault(doc: Doc): Doc {
+  return doc.trashedItems ? doc : { ...doc, trashedItems: [] };
 }
 
 /**

@@ -144,15 +144,21 @@ export type Item<T extends ItemType = ItemType> = {
 
 export type AnyItem = { [K in ItemType]: Item<K> }[ItemType];
 
+/** A canvas item removed from the board, kept around for recovery — not the
+ *  board/folder-level trash (Node.deletedAt), a separate, per-board concept. */
+export type TrashEntry = { item: AnyItem; deletedAt: string };
+
 export type Doc = {
   /** Items by id. */
   items: Record<string, AnyItem>;
   /** Bottom-to-top paint order. Also the z-order for hit-testing (reversed). */
   order: string[];
+  /** Newest first, capped at TRASH_LIMIT (see store.ts). */
+  trashedItems: TrashEntry[];
 };
 
 export function emptyDoc(): Doc {
-  return { items: {}, order: [] };
+  return { items: {}, order: [], trashedItems: [] };
 }
 
 export const DEFAULT_SIZES: Record<ItemType, { w: number; h: number }> = {

@@ -1,5 +1,6 @@
 import type { AnyItem, Doc, ItemType, NoteColor, Vec } from "@/canvas/types";
 import { DEFAULT_SIZES, defaultProps, emptyDoc } from "@/canvas/types";
+import { plainTextBlocks } from "@/canvas/richText";
 
 // One-way conversion of the tldraw room snapshots this project stored until
 // the renderer swap. Boards created before the swap would otherwise open
@@ -121,7 +122,7 @@ function convert(
     case "note": {
       const size = DEFAULT_SIZES.note;
       const item = base(shape, "note", size.w, num(p.growY, 0) + size.h);
-      item.props = { text: plainText(p.richText), color: color(p.color) };
+      item.props = { blocks: plainTextBlocks(plainText(p.richText)), color: color(p.color) };
       return item as AnyItem;
     }
     case "text": {

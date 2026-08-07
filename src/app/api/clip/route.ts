@@ -10,6 +10,7 @@ import { readDoc, writeDoc } from "@/lib/board-doc-store";
 import { itemBounds, unionBounds } from "@/canvas/geometry";
 import type { AnyItem } from "@/canvas/types";
 import { DEFAULT_SIZES } from "@/canvas/types";
+import { plainTextBlocks } from "@/canvas/richText";
 
 type ClipBody =
   | { boardId: string; kind: "text"; text: string }
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
         ...at,
         ...DEFAULT_SIZES.note,
         rotation: 0,
-        props: { text, color: "yellow" },
+        props: { blocks: plainTextBlocks(text), color: "yellow" },
       };
     } else if (body.kind === "link") {
       const url = body.url;

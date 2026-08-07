@@ -72,6 +72,6 @@ export function setFontFamily(family: string) {
   if (family) resolvedFamily = family;
 }
 
-export function font(size: number, weight: number | string = 400): string {
-  return `${weight} ${size}px ${resolvedFamily}`;
+export function font(size: number, weight: number | string = 400, italic = false): string {
+  return `${italic ? "italic " : ""}${weight} ${size}px ${resolvedFamily}`;
 }

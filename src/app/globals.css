@@ -83,6 +83,21 @@ body {
   outline-offset: 2px;
 }
 
+/* The note editor's contentEditable — reset the browser's default list
+   indent and paragraph spacing so the live editing surface lines up with
+   where the canvas renderer paints the very same content once it stops
+   being edited (see richTextPaint.ts, which uses its own fixed marker
+   widths rather than the browser's ~40px UL default). */
+.richtext-note div,
+.richtext-note p {
+  margin: 0;
+}
+.richtext-note ul,
+.richtext-note ol {
+  margin: 0;
+  padding-left: 1.3em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

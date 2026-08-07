@@ -60,8 +60,26 @@ export type TodoEntry = { id: string; text: string; done: boolean };
  *  instant the target changed size. */
 export type ArrowBinding = { itemId: string; anchor: Vec };
 
+export type TextRun = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  color?: string;
+  size?: number;
+};
+
+export type TextBlock = {
+  kind: "paragraph" | "bullet" | "numbered";
+  align: "left" | "center" | "right";
+  runs: TextRun[];
+};
+
 export type ItemProps = {
-  note: { text: string; color: NoteColor };
+  /** `blocks` is the only source of truth for a note's content — see
+   *  richText.ts. It's structured data, never raw HTML, so there's nowhere
+   *  for a pasted or maliciously-crafted `<script>` to survive into. */
+  note: { blocks: TextBlock[]; color: NoteColor };
   text: { text: string; size: number; color: NoteColor };
   image: { src: string; alt: string };
   link: { url: string; title: string; description: string; image: string; favicon: string };
@@ -153,7 +171,7 @@ export const DEFAULT_SIZES: Record<ItemType, { w: number; h: number }> = {
 
 export function defaultProps<T extends ItemType>(type: T): ItemProps[T] {
   const byType: { [K in ItemType]: ItemProps[K] } = {
-    note: { text: "", color: "yellow" },
+    note: { blocks: [{ kind: "paragraph", align: "left", runs: [{ text: "" }] }], color: "yellow" },
     text: { text: "", size: 20, color: "grey" },
     image: { src: "", alt: "" },
     link: { url: "", title: "", description: "", image: "", favicon: "" },

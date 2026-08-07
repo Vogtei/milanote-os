@@ -5,6 +5,8 @@ import { boundsOfPoints, HANDLES, handlePoint, itemBounds, rectsIntersect, union
 import { ellipsize, font, wrapText } from "@/canvas/text";
 import { resolveArrowEndpoints, type ItemLookup } from "@/canvas/arrowBinding";
 import { todoRows } from "@/canvas/todoLayout";
+import { paintBlocks } from "@/canvas/richTextPaint";
+import { isBlocksEmpty } from "@/canvas/richText";
 import { containerTileHeight } from "@/canvas/containerLayout";
 import { coverRect, getImage } from "@/canvas/images";
 
@@ -147,18 +149,21 @@ function drawNote(ctx: CanvasRenderingContext2D, item: Item<"note">, state: Rend
   ctx.stroke();
 
   if (state.editingId === item.id) return;
-  const f = font(15);
-  const empty = !item.props.text;
-  const lines = wrapText(ctx, item.props.text || "Notiz schreiben…", item.w - PADDING * 2, f);
-  ctx.fillStyle = empty ? withAlpha(colors.text, 0.45) : colors.text;
-  ctx.font = f;
-  ctx.textBaseline = "top";
-  let y = item.y + PADDING;
-  for (const line of lines) {
-    if (y > item.y + item.h - PADDING) break;
-    ctx.fillText(line, item.x + PADDING, y);
-    y += 22;
+
+  if (isBlocksEmpty(item.props.blocks)) {
+    ctx.font = font(15);
+    ctx.fillStyle = withAlpha(colors.text, 0.45);
+    ctx.textBaseline = "top";
+    ctx.fillText("Notiz schreiben…", item.x + PADDING, item.y + PADDING);
+    return;
   }
+
+  paintBlocks(
+    ctx,
+    item.props.blocks,
+    { x: item.x + PADDING, y: item.y + PADDING, w: item.w - PADDING * 2 },
+    { baseSize: 15, baseColor: colors.text, maxY: item.y + item.h - PADDING },
+  );
 }
 
 function drawText(ctx: CanvasRenderingContext2D, item: Item<"text">, state: RenderState) {

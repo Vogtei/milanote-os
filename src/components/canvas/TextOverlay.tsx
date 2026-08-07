@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { BoardEditor } from "@/canvas/editor";
 import { PALETTES } from "@/canvas/theme";
 import { useTheme } from "@/components/ThemeProvider";
+import { useEditorTick } from "@/components/canvas/useEditorTick";
 
 /**
- * Text editing happens in a real <textarea> positioned over the item, not in
- * the canvas: caret placement, IME, selection, autocorrect, accessibility and
- * mobile keyboards are all things the platform already does correctly and
- * nobody should reimplement on a bitmap.
+ * Editing surface for the plain "Text" canvas label — a single run, one size,
+ * one colour, no toolbar. A real <textarea> positioned over the item: caret
+ * placement, IME, selection, autocorrect, accessibility and mobile keyboards
+ * are all things the platform already does correctly.
  *
- * The renderer skips the item being edited (see RenderState.editingId) so the
- * overlay is the only copy of the text on screen.
+ * Notes are richer (bold/italic/lists/per-run colour) and have their own
+ * contentEditable-based editor — see NoteEditor.tsx.
+ *
+ * The renderer skips the item being edited (see RenderState.editingId) so
+ * this overlay is the only copy of the text on screen while it's open.
  */
 export function TextOverlay({ editor }: { editor: BoardEditor }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
-  const [, bump] = useState(0);
-
-  useEffect(() => editor.subscribe(() => bump((n) => n + 1)), [editor]);
+  useEditorTick(editor);
 
   const editingId = editor.getEditingId();
   const item = editingId ? editor.store.getItem(editingId) : undefined;
@@ -30,22 +32,15 @@ export function TextOverlay({ editor }: { editor: BoardEditor }) {
     if (!el) return;
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
-  if (!item || (item.type !== "note" && item.type !== "text")) return null;
+  if (!item || item.type !== "text") return null;
 
   const palette = PALETTES[theme];
   const camera = editor.getCamera();
   const topLeft = editor.worldToScreen({ x: item.x, y: item.y });
-  const padding = item.type === "note" ? 14 : 0;
-  const fontSize = item.type === "note" ? 15 : item.props.size;
-  const lineHeight = item.type === "note" ? 22 : fontSize * 1.35;
-  const color =
-    item.type === "note"
-      ? palette.note[item.props.color].text
-      : item.props.color === "grey"
-        ? palette.text
-        : palette.stroke[item.props.color];
+  const color = item.props.color === "grey" ? palette.text : palette.stroke[item.props.color];
 
   return (
     <textarea
@@ -63,13 +58,13 @@ export function TextOverlay({ editor }: { editor: BoardEditor }) {
       spellCheck={false}
       className="absolute resize-none border-0 bg-transparent outline-none"
       style={{
-        left: topLeft.x + padding * camera.z,
-        top: topLeft.y + padding * camera.z,
-        width: (item.w - padding * 2) * camera.z,
-        height: (item.h - padding * 2) * camera.z,
-        fontSize: fontSize * camera.z,
-        lineHeight: `${lineHeight * camera.z}px`,
-        fontWeight: item.type === "text" ? 500 : 400,
+        left: topLeft.x,
+        top: topLeft.y,
+        width: item.w * camera.z,
+        height: item.h * camera.z,
+        fontSize: item.props.size * camera.z,
+        lineHeight: `${item.props.size * 1.35 * camera.z}px`,
+        fontWeight: 500,
         color,
         caretColor: color,
       }}

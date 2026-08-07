@@ -5,15 +5,12 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { canWrite, resolveBoardAccess } from "@/lib/access-core";
 import type { Doc } from "@/canvas/types";
-import { emptyDoc } from "@/canvas/types";
-import { looksLikeTldrawSnapshot, migrateTldrawSnapshot } from "@/canvas/migrate-tldraw";
+import { readDoc, writeDoc } from "@/lib/board-doc-store";
 
-// BoardDoc.state is a Bytes column that used to hold a tldraw room snapshot.
-// It now holds this envelope. The version tag is what lets loadBoardDoc tell
-// the two apart without guessing at the payload's shape.
-const DOC_VERSION = 2;
-
-type Envelope = { v: number; doc: Doc };
+// Auth/access-control wrapper around board-doc-store.ts, which owns the
+// actual storage format (and every migration on top of it) so there's one
+// definition shared with the clipper's route handler — not two copies of the
+// same parsing logic silently drifting apart.
 
 async function requireAccess(nodeId: string, write: boolean) {
   const session = await auth();
@@ -34,39 +31,10 @@ async function requireAccess(nodeId: string, write: boolean) {
 
 export async function loadBoardDoc(nodeId: string): Promise<Doc> {
   await requireAccess(nodeId, false);
-
-  const record = await prisma.boardDoc.findUnique({ where: { nodeId } });
-  if (!record?.state) return emptyDoc();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(Buffer.from(record.state).toString("utf-8"));
-  } catch {
-    console.error(`[board-doc] unparseable state for board ${nodeId}`);
-    return emptyDoc();
-  }
-
-  if (typeof parsed === "object" && parsed !== null && (parsed as Envelope).v === DOC_VERSION) {
-    return (parsed as Envelope).doc;
-  }
-
-  // Pre-swap board: convert on read. The new format is written back on the
-  // next save, so this path runs at most once per board in practice — but it
-  // stays in place, because a board nobody edits is never rewritten.
-  if (looksLikeTldrawSnapshot(parsed)) return migrateTldrawSnapshot(parsed);
-
-  return emptyDoc();
+  return readDoc(nodeId);
 }
 
 export async function saveBoardDoc(nodeId: string, doc: Doc): Promise<void> {
   await requireAccess(nodeId, true);
-
-  const envelope: Envelope = { v: DOC_VERSION, doc };
-  const state = Buffer.from(JSON.stringify(envelope), "utf-8");
-
-  await prisma.boardDoc.upsert({
-    where: { nodeId },
-    create: { nodeId, state },
-    update: { state },
-  });
+  await writeDoc(nodeId, doc);
 }

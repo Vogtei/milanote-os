@@ -7,6 +7,7 @@ import { PALETTES } from "@/canvas/theme";
 import { setFontFamily } from "@/canvas/text";
 import { useTheme } from "@/components/ThemeProvider";
 import { TextOverlay } from "@/components/canvas/TextOverlay";
+import { NoteEditor } from "@/components/canvas/NoteEditor";
 import { TodoEntryOverlay } from "@/components/canvas/TodoEntryOverlay";
 import { RenameOverlay } from "@/components/canvas/RenameOverlay";
 
@@ -317,6 +318,7 @@ export function VosCanvas({
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <canvas ref={canvasRef} className="block touch-none" style={{ cursor }} />
       <TextOverlay editor={editor} />
+      <NoteEditor editor={editor} />
       <TodoEntryOverlay editor={editor} />
       <RenameOverlay editor={editor} />
     </div>

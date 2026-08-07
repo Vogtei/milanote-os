@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { BoardEditor } from "@/canvas/editor";
 import type { AnyItem } from "@/canvas/types";
+import { blocksToPlainText } from "@/canvas/richText";
 import {
   TopBar,
   WorkspaceCrumb,
@@ -196,6 +197,7 @@ function BoardMenu({
 function itemText(item: AnyItem): string {
   switch (item.type) {
     case "note":
+      return blocksToPlainText(item.props.blocks);
     case "text":
       return item.props.text;
     case "link":

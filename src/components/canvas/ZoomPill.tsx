@@ -12,7 +12,7 @@ export function ZoomPill({ editor }: { editor: BoardEditor }) {
   const pct = Math.round(editor.getCamera().z * 100);
 
   return (
-    <div className="vos-panel vos-panel-shadow fixed bottom-3.5 right-3.5 z-[300] flex h-11 items-center gap-0.5 rounded-full px-1">
+    <div className="vos-panel vos-panel-shadow fixed bottom-3.5 right-3.5 z-[300] flex h-11 items-center gap-0.5 rounded-[15px] px-1">
       <IconBtn label="Verkleinern" onClick={() => editor.zoomOut()}>
         <MinusIcon size={16} />
       </IconBtn>

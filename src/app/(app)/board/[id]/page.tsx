@@ -68,6 +68,7 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
                 ? "Kommentieren"
                 : "Bearbeiten",
         share: role === "OWNER" ? <ShareDialog nodeId={id} /> : null,
+        user: { name: session.user.name ?? null, email: session.user.email ?? "" },
       }}
     />
   );

@@ -31,6 +31,8 @@ import {
   Eraser,
   Highlighter,
   X,
+  Settings,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,3 +73,5 @@ export const PresentIcon = wrap(Presentation);
 export const ExitPresentIcon = wrap(Minimize2);
 export const HomeIcon = wrap(Home);
 export const CloseIcon = wrap(X);
+export const SettingsIcon = wrap(Settings);
+export const UploadIcon = wrap(Upload);

@@ -12,7 +12,7 @@ import {
   UndoIcon,
   RedoIcon,
   ExportImageIcon,
-  KebabIcon,
+  SettingsIcon,
   SunIcon,
   MoonIcon,
   ChevronDownIcon,
@@ -25,7 +25,7 @@ import {
   FitIcon,
 } from "@/components/icons/VosIcons";
 import { CommentIcon, TrashIcon } from "@/components/icons/MilanoteIcons";
-import { signOutAction } from "@/lib/auth-actions";
+import { SettingsModal } from "@/components/SettingsModal";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -38,6 +38,7 @@ export type BoardChrome = {
   ancestors: { id: string; title: string }[];
   roleLabel: string | null;
   share?: React.ReactNode;
+  user: { name: string | null; email: string };
 };
 
 /** Shared close-on-outside-click behaviour for the topbar's popovers. The
@@ -77,7 +78,7 @@ export function BoardTopBar({
 }) {
   useEditorTick(editor);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const readonly = editor.isReadonly();
@@ -85,7 +86,6 @@ export function BoardTopBar({
 
   const exportRef = useClickAway(exportOpen, () => setExportOpen(false));
   const zoomRef = useClickAway(zoomOpen, () => setZoomOpen(false));
-  const menuRef = useClickAway(menuOpen, () => setMenuOpen(false));
 
   return (
     <>
@@ -125,11 +125,9 @@ export function BoardTopBar({
           <IconBtn label="Suchen" active={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
             <SearchIcon />
           </IconBtn>
-          <span className="hidden sm:inline">
-            <IconBtn label="Kommentare" onClick={onToggleComments}>
-              <CommentIcon />
-            </IconBtn>
-          </span>
+          <IconBtn label="Kommentare" onClick={onToggleComments}>
+            <CommentIcon />
+          </IconBtn>
 
           <div ref={exportRef} className="relative">
             <IconBtn label="Exportieren" active={exportOpen} onClick={() => setExportOpen((v) => !v)}>
@@ -179,21 +177,22 @@ export function BoardTopBar({
           >
             {theme === "dark" ? <MoonIcon /> : <SunIcon />}
           </IconBtn>
-          <div ref={menuRef} className="relative">
-            <IconBtn label="Menü" active={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
-              <KebabIcon />
-            </IconBtn>
-            {menuOpen && (
-              <BoardMenu
-                onClose={() => setMenuOpen(false)}
-                onToggleComments={onToggleComments}
-              />
-            )}
-          </div>
+          <Link
+            href="/trash"
+            title="Papierkorb"
+            aria-label="Papierkorb"
+            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg text-[var(--vos-muted)] transition-colors hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+          >
+            <TrashIcon />
+          </Link>
+          <IconBtn label="Einstellungen" active={settingsOpen} onClick={() => setSettingsOpen(true)}>
+            <SettingsIcon />
+          </IconBtn>
         </div>
       </TopBar>
 
       {searchOpen && <SearchPanel editor={editor} onClose={() => setSearchOpen(false)} />}
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} user={chrome.user} />
     </>
   );
 }
@@ -316,36 +315,6 @@ function ZoomMenu({
           <PresentIcon size={14} /> Präsentieren
         </button>
       </div>
-    </div>
-  );
-}
-
-function BoardMenu({
-  onClose,
-  onToggleComments,
-}: {
-  onClose: () => void;
-  onToggleComments: () => void;
-}) {
-  const row =
-    "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]";
-
-  return (
-    <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-60 flex-col rounded-xl p-1.5">
-      {/* Duplicate of a topbar button hidden on narrow screens — the menu
-          is the only place it exists on a phone. Export is never hidden, so
-          it doesn't need a duplicate here. */}
-      <button className={`${row} sm:hidden`} onClick={() => { onClose(); onToggleComments(); }}>
-        <CommentIcon size={18} /> Kommentare
-      </button>
-
-      <span className="my-1 h-px bg-[var(--vos-border)]" />
-      <Link href="/trash" className={row}>
-        <TrashIcon size={18} /> Papierkorb
-      </Link>
-      <form action={signOutAction}>
-        <button className={row}>Abmelden</button>
-      </form>
     </div>
   );
 }

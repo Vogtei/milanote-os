@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { CanvasPrefsProvider } from "@/components/CanvasPrefsProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,7 +47,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <CanvasPrefsProvider>{children}</CanvasPrefsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import { render } from "@/canvas/renderer";
 import { PALETTES } from "@/canvas/theme";
 import { setFontFamily } from "@/canvas/text";
 import { useTheme } from "@/components/ThemeProvider";
+import { useCanvasPrefs } from "@/components/CanvasPrefsProvider";
 import { TextOverlay } from "@/components/canvas/TextOverlay";
 import { NoteEditor } from "@/components/canvas/NoteEditor";
 import { TodoEntryOverlay } from "@/components/canvas/TodoEntryOverlay";
@@ -43,6 +44,7 @@ export function VosCanvas({
   // two effects can't share a closure and the sizing one runs first.
   const repaintRef = useRef<(() => void) | null>(null);
   const { theme } = useTheme();
+  const { showGrid } = useCanvasPrefs();
   const [, forceRender] = useState(0);
 
   // Resolve the actual font stack once so the canvas can use it — a 2D context
@@ -75,7 +77,7 @@ export function VosCanvas({
         renaming: editor.getRenaming(),
         marquee: editor.getMarquee(),
         palette: PALETTES[theme],
-        showGrid: true,
+        showGrid,
         invalidate: schedule,
       });
     };
@@ -104,7 +106,7 @@ export function VosCanvas({
         frameRef.current = null;
       }
     };
-  }, [editor, theme, boardCounts]);
+  }, [editor, theme, boardCounts, showGrid]);
 
   // Size the backing store to the device pixel ratio so text and hairlines
   // aren't blurry on retina displays.

@@ -357,7 +357,7 @@ function SearchPanel({ editor, onClose }: { editor: BoardEditor; onClose: () => 
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
         placeholder="Auf diesem Board suchen…"
-        className="rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3.5 py-2.5 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-muted)]"
+        className="rounded-lg border border-[var(--vos-border)] bg-[var(--vos-input)] px-3.5 py-2.5 text-[14px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-text-strong)]"
       />
       {needle && (
         <div className="mt-1.5 flex max-h-72 flex-col overflow-y-auto">

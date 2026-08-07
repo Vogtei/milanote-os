@@ -83,6 +83,15 @@ body {
   outline-offset: 2px;
 }
 
+/* Text fields already carry their own focus affordance — a border-color
+   change to var(--vos-text-strong) — so the generic outline above would just
+   double up as a second, offset ring around the same box. Higher-specificity
+   selector, so it wins over the rule above regardless of source order. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
 /* The note editor's contentEditable — reset the browser's default list
    indent and paragraph spacing so the live editing surface lines up with
    where the canvas renderer paints the very same content once it stops

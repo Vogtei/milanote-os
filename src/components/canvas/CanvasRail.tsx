@@ -9,7 +9,7 @@ import { DRAG_MIME, SHAPE_KIND_MIME, TOOLS, type ToolSpec } from "@/components/c
 import { useCanvasActions } from "@/components/canvas/CanvasActions";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
-import { EraserIcon, HighlighterIcon, KebabIcon } from "@/components/icons/VosIcons";
+import { EraserIcon, HighlighterIcon, KebabHorizontalIcon } from "@/components/icons/VosIcons";
 import { TrashIcon } from "@/components/icons/MilanoteIcons";
 import { ShapeGlyph } from "@/components/canvas/ShapeGlyph";
 
@@ -192,7 +192,7 @@ export function CanvasRail({
           <RailButton
             label="Mehr"
             active={popover === "overflow"}
-            icon={<KebabIcon size={22} />}
+            icon={<KebabHorizontalIcon size={22} />}
             onClick={() => setPopover((open) => (open === "overflow" ? null : "overflow"))}
           />
           {popover === "overflow" && (

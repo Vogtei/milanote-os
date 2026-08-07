@@ -13,6 +13,7 @@ import {
   Download,
   Share2,
   MoreVertical,
+  MoreHorizontal,
   ChevronDown,
   Maximize2,
   Plus,
@@ -54,6 +55,7 @@ export const RedoIcon = wrap(Redo2);
 export const ExportImageIcon = wrap(Download);
 export const ShareIcon = wrap(Share2);
 export const KebabIcon = wrap(MoreVertical);
+export const KebabHorizontalIcon = wrap(MoreHorizontal);
 export const ChevronDownIcon = wrap(ChevronDown);
 export const FitIcon = wrap(Maximize2);
 export const PlusIcon = wrap(Plus);

@@ -73,6 +73,7 @@ export function CanvasRail({
   trashOpen = false,
   onToggleTrash,
   onToolDragStart,
+  onToolActivate,
 }: {
   editor: BoardEditor;
   /** COMMENT-role viewers can't edit the board (editor.isReadonly() is true
@@ -83,6 +84,11 @@ export function CanvasRail({
   trashOpen?: boolean;
   onToggleTrash?: () => void;
   onToolDragStart?: (tool: ToolSpec, e: React.PointerEvent) => void;
+  /** Fires the moment any tool is used — clicked, armed, or dragged. Closes
+   *  whatever left-docked sidepanel (currently just Papierkorb) is open, so
+   *  using a tool always drops you back onto the plain rail instead of
+   *  leaving a panel floating behind it. */
+  onToolActivate?: () => void;
 }) {
   useEditorTick(editor);
   const actions = useCanvasActions();
@@ -139,7 +145,13 @@ export function CanvasRail({
     overflowed = topTools.slice(k);
   }
 
+  const handleToolDragStart = (tool: ToolSpec, e: React.PointerEvent) => {
+    onToolActivate?.();
+    onToolDragStart?.(tool, e);
+  };
+
   const runToolClick = (tool: ToolSpec) => {
+    onToolActivate?.();
     if (tool.popover) {
       editor.setTool(tool.id);
       setPopover((open) => (open === tool.popover ? null : tool.popover!));
@@ -169,7 +181,13 @@ export function CanvasRail({
       // `railH`) while letting the rail shrink to its natural content height
       // whenever there's slack.
       style={{ maxHeight: `${railH}px` }}
-      className="vos-panel pointer-events-auto absolute left-2.5 top-1/2 z-[310] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[15px] py-2.5 md:flex"
+      // Slides right, fluidly, to sit beside the Papierkorb sidebar instead
+      // of overlapping it — the panel is a fixed w-80 flush to the left
+      // edge, so 330px clears it with the same 10px gap the rail keeps from
+      // the edge itself.
+      className={`vos-panel pointer-events-auto absolute top-1/2 z-[310] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[15px] py-2.5 transition-[left] duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] md:flex ${
+        trashOpen ? "left-[330px]" : "left-2.5"
+      }`}
       aria-label="Werkzeuge"
     >
       {visible.map((tool) => (
@@ -179,7 +197,7 @@ export function CanvasRail({
             active={active === tool.id}
             icon={<tool.icon size={22} />}
             dragToolId={isDragOnly(tool) ? undefined : tool.id}
-            onPointerDown={isDragOnly(tool) ? (e) => onToolDragStart?.(tool, e) : undefined}
+            onPointerDown={isDragOnly(tool) ? (e) => handleToolDragStart(tool, e) : undefined}
             onClick={() => runToolClick(tool)}
           />
           {popover === "shape" && tool.popover === "shape" && <ShapePicker editor={editor} />}
@@ -200,7 +218,7 @@ export function CanvasRail({
               tools={overflowed}
               active={active}
               onPick={runToolClick}
-              onToolDragStart={onToolDragStart}
+              onToolDragStart={handleToolDragStart}
             />
           )}
         </div>

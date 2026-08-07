@@ -314,6 +314,7 @@ function BoardSurface({
               setItemTrashOpen((v) => !v);
             }}
             onToolDragStart={startToolDrag}
+            onToolActivate={() => setItemTrashOpen(false)}
           />
           <ZoomPill editor={editor} />
           {dragGhost && (

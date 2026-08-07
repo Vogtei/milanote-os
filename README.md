@@ -1,13 +1,13 @@
-# milanote-os
+# Vellum
 
-A self-hostable, 1:1 clone of [Milanote](https://milanote.com) — an infinite visual canvas for organizing ideas, notes, images, links, and to-dos into moodboards and project boards.
+A self-hostable visual workspace for turning ideas into shared concepts — an infinite canvas for organizing notes, images, links, and to-dos into moodboards and project boards. Inspired by [Milanote](https://milanote.com).
 
 Own your boards. No subscription, no vendor lock-in, no third-party server holding your data.
 
 ## Features
 
 - **Infinite canvas board** — a custom HTML5-canvas renderer (no external whiteboard library) with notes, rich text, to-do checklists, images, file/document cards, links with auto-fetched previews, freehand drawing, arrows (with live shape binding), and twelve shape types
-- **Nested boards** — boards can contain boards, mirroring Milanote's folder-like organization
+- **Nested boards** — boards can contain boards
 - **Per-board item trash** — deleted cards are recoverable, not gone the instant you hit delete
 - **Comments** — drop a pin anywhere on the board and browse them in a dedicated sidebar
 - **Sharing** — generate view/comment/edit links per board, redeemable by anyone with the link

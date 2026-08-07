@@ -3,22 +3,22 @@ const APP_ORIGIN = "http://localhost:3000";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "clip-selection",
-    title: 'Auswahl "%s" an Milanote-OS senden',
+    title: 'Auswahl "%s" an Vellum senden',
     contexts: ["selection"],
   });
   chrome.contextMenus.create({
     id: "clip-image",
-    title: "Bild an Milanote-OS senden",
+    title: "Bild an Vellum senden",
     contexts: ["image"],
   });
   chrome.contextMenus.create({
     id: "clip-link",
-    title: "Link an Milanote-OS senden",
+    title: "Link an Vellum senden",
     contexts: ["link"],
   });
   chrome.contextMenus.create({
     id: "clip-page",
-    title: "Diese Seite an Milanote-OS senden",
+    title: "Diese Seite an Vellum senden",
     contexts: ["page"],
   });
 });

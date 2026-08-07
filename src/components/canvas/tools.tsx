@@ -8,7 +8,7 @@ import {
   ImageIcon,
   DrawIcon,
   CommentIcon,
-} from "@/components/icons/MilanoteIcons";
+} from "@/components/icons/ContentIcons";
 import {
   SelectIcon,
   TextIcon,

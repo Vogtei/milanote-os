@@ -23,7 +23,7 @@ import {
   PlusIcon,
   FitIcon,
 } from "@/components/icons/VosIcons";
-import { CommentIcon } from "@/components/icons/MilanoteIcons";
+import { CommentIcon } from "@/components/icons/ContentIcons";
 import { SettingsModal } from "@/components/SettingsModal";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";

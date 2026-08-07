@@ -10,15 +10,15 @@
    source of truth and no media query racing the stored preference. */
 :root,
 :root[data-theme="dark"] {
-  --vos-bg: #17181c;
-  --vos-panel: rgba(34, 35, 40, 0.84);
-  --vos-panel-solid: rgb(35, 36, 40);
-  --vos-input: #17181c;
-  --vos-border: rgb(58, 59, 65);
-  --vos-text: rgb(231, 229, 224);
-  --vos-text-strong: rgb(244, 243, 239);
-  --vos-muted: rgb(156, 153, 143);
-  --vos-faint: rgb(120, 118, 112);
+  --vos-bg: #000000;
+  --vos-panel: rgba(17, 17, 17, 0.88);
+  --vos-panel-solid: #111111;
+  --vos-input: #111111;
+  --vos-border: #292929;
+  --vos-text: rgb(224, 224, 224);
+  --vos-text-strong: #ffffff;
+  --vos-muted: #a3a3a3;
+  --vos-faint: rgb(115, 115, 115);
   --vos-hover: rgba(255, 255, 255, 0.118);
   --vos-hover-soft: rgba(255, 255, 255, 0.06);
   --vos-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.3);
@@ -28,15 +28,15 @@
 }
 
 :root[data-theme="light"] {
-  --vos-bg: #f6f5f2;
+  --vos-bg: #f7f7f7;
   --vos-panel: rgba(255, 255, 255, 0.86);
   --vos-panel-solid: #ffffff;
   --vos-input: #ffffff;
-  --vos-border: #dedcd6;
-  --vos-text: #2a2b30;
-  --vos-text-strong: #17181c;
-  --vos-muted: #6b6a65;
-  --vos-faint: #94938d;
+  --vos-border: #e8e8e8;
+  --vos-text: #111111;
+  --vos-text-strong: #000000;
+  --vos-muted: #6b6b6b;
+  --vos-faint: #9a9a9a;
   --vos-hover: rgba(0, 0, 0, 0.085);
   --vos-hover-soft: rgba(0, 0, 0, 0.045);
   --vos-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 18px rgba(0, 0, 0, 0.1);
@@ -47,9 +47,7 @@
 @theme inline {
   --color-background: var(--vos-bg);
   --color-foreground: var(--vos-text);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-fraunces);
+  --font-sans: var(--font-manrope);
 }
 
 html {
@@ -59,8 +57,25 @@ html {
 body {
   background: var(--vos-bg);
   color: var(--vos-text);
-  font-family: var(--font-inter), -apple-system, system-ui, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family: var(--font-manrope), -apple-system, system-ui, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* VellumMark: which of the two theme-specific glyph variants is visible —
+   driven by the same data-theme attribute as every other token here, not a
+   Tailwind dark: variant (that tracks prefers-color-scheme, not our stamped
+   attribute). */
+.vellum-mark-light {
+  display: block;
+}
+.vellum-mark-dark {
+  display: none;
+}
+:root[data-theme="dark"] .vellum-mark-light {
+  display: none;
+}
+:root[data-theme="dark"] .vellum-mark-dark {
+  display: block;
 }
 
 /* Floating glass panel — topbar, tool rail, zoom pill and every popover are

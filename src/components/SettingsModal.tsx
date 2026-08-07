@@ -145,7 +145,7 @@ function DataTab() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `milanote-os-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `vellum-backup-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
     } finally {

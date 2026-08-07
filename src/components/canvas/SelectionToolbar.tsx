@@ -6,7 +6,7 @@ import type { NoteColor } from "@/canvas/types";
 import { NOTE_COLORS, PALETTES } from "@/canvas/theme";
 import { useTheme } from "@/components/ThemeProvider";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
-import { TrashIcon } from "@/components/icons/MilanoteIcons";
+import { TrashIcon } from "@/components/icons/ContentIcons";
 import { CopyIcon, LockIcon, UnlockIcon } from "@/components/icons/VosIcons";
 
 const BAR_HEIGHT = 44;

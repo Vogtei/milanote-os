@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BoardEditor } from "@/canvas/editor";
 import type { Comment } from "@/lib/comments";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
-import { CommentIcon } from "@/components/icons/MilanoteIcons";
+import { CommentIcon } from "@/components/icons/ContentIcons";
 
 /** Comment pins are screen-space overlays, same pattern as every other
  *  DOM-over-canvas piece in this app (RenameOverlay, TodoEntryOverlay) —

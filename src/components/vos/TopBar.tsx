@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDownIcon } from "@/components/icons/VosIcons";
+import { VellumMark } from "@/components/VellumMark";
 
 // The docked glass topbar. Flush with the viewport's top edge, full width —
 // only the bottom corners round off. Geometry otherwise (52px tall, 14px
@@ -13,18 +13,17 @@ export function TopBar({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Workspace chip: a coloured dot plus a chevron, standing in for the whole
-// "which workspace am I in" switcher. Links home rather than opening a menu —
-// we only have one workspace per user.
+// Workspace chip: the Vellum mark, standing in for the whole "which
+// workspace am I in" switcher. Links home rather than opening a menu — we
+// only have one workspace per user.
 export function WorkspaceCrumb({ label }: { label: string }) {
   return (
     <Link
       href="/"
       title={label}
-      className="flex items-center gap-1 rounded-[7px] px-1 py-1 text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+      className="flex items-center rounded-[7px] p-1 hover:bg-[var(--vos-hover-soft)]"
     >
-      <span className="h-[9px] w-[9px] rounded-full bg-[rgb(96,97,104)]" />
-      <ChevronDownIcon size={14} />
+      <VellumMark size={22} />
     </Link>
   );
 }

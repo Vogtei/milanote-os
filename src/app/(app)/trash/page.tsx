@@ -1,6 +1,6 @@
 import { listTrash, restoreNode } from "@/lib/nodes";
 import { TopBar, WorkspaceCrumb, CrumbDivider, Crumb } from "@/components/vos/TopBar";
-import { BoardIcon } from "@/components/icons/MilanoteIcons";
+import { BoardIcon } from "@/components/icons/ContentIcons";
 
 export default async function TrashPage() {
   const items = await listTrash();

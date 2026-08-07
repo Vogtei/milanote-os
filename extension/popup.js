@@ -34,7 +34,7 @@ async function loadPendingClip() {
 async function loadBoards() {
   const res = await fetch(`${APP_ORIGIN}/api/boards`, { credentials: "include" });
   if (res.status === 401) {
-    setStatus("Bitte zuerst in Milanote-OS einloggen.", "error");
+    setStatus("Bitte zuerst in Vellum einloggen.", "error");
     previewEl.innerHTML = `<a href="${APP_ORIGIN}/signin" target="_blank">Jetzt einloggen</a>`;
     return null;
   }

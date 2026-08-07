@@ -15,7 +15,7 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = "milanote-os:theme";
+const STORAGE_KEY = "vellum:theme";
 
 function systemTheme(): ThemeName {
   if (typeof window === "undefined") return "dark";

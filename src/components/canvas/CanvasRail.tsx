@@ -10,7 +10,7 @@ import { useCanvasActions } from "@/components/canvas/CanvasActions";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
 import { EraserIcon, HighlighterIcon, KebabHorizontalIcon } from "@/components/icons/VosIcons";
-import { TrashIcon } from "@/components/icons/MilanoteIcons";
+import { TrashIcon } from "@/components/icons/ContentIcons";
 import { ShapeGlyph } from "@/components/canvas/ShapeGlyph";
 
 /** Fixed pixel dimensions of a RailButton (h-[50px]) plus the rail's own

@@ -1,7 +1,7 @@
 // Local-only safety net for board state — lets a board keep working (and
 // reload cleanly) while genuinely offline. Payload-agnostic on purpose: it
 // stores whatever the caller hands it, currently a board Doc.
-const DB_NAME = "milanote-offline";
+const DB_NAME = "vellum-offline";
 const STORE_NAME = "board-snapshots";
 
 function openDb(): Promise<IDBDatabase> {

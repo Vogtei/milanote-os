@@ -12,7 +12,7 @@ type CanvasPrefsValue = {
 
 const CanvasPrefsContext = createContext<CanvasPrefsValue | null>(null);
 
-const STORAGE_KEY = "milanote-os:showGrid";
+const STORAGE_KEY = "vellum:showGrid";
 
 export function CanvasPrefsProvider({ children }: { children: React.ReactNode }) {
   const [showGrid, setShowGridState] = useState(true);

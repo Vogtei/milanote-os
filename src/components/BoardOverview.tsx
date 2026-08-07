@@ -7,7 +7,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import { TopBar, WorkspaceCrumb, CrumbDivider, Crumb, TopBarSpacer } from "@/components/vos/TopBar";
 import { IconBtn } from "@/components/vos/IconBtn";
 import { KebabIcon, PlusIcon, SearchIcon } from "@/components/icons/VosIcons";
-import { BoardIcon, TrashIcon } from "@/components/icons/MilanoteIcons";
+import { BoardIcon, TrashIcon } from "@/components/icons/ContentIcons";
 import { signOutAction } from "@/lib/auth-actions";
 
 type BoardNode = { id: string; title: string };

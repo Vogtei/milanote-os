@@ -12,7 +12,7 @@ import {
   ImageIcon,
   DrawIcon,
   BoardIcon,
-} from "@/components/icons/MilanoteIcons";
+} from "@/components/icons/ContentIcons";
 import {
   TextIcon,
   ShapesIcon,

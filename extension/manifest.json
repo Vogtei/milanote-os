@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Milanote-OS Clipper",
+  "name": "Vellum Clipper",
   "version": "0.1.0",
-  "description": "Text, Bilder und Links direkt in ein Milanote-OS-Board speichern.",
+  "description": "Text, Bilder und Links direkt in ein Vellum-Board speichern.",
   "permissions": ["contextMenus", "storage", "cookies"],
   "host_permissions": ["http://localhost:3000/*"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "An Milanote-OS senden",
+    "default_title": "An Vellum senden",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

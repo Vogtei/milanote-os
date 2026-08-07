@@ -21,7 +21,7 @@ export function CommentsPanel({
   if (!open) return null;
 
   return (
-    <div className="vos-panel vos-panel-shadow fixed right-2.5 top-[62px] z-[300] flex max-h-[calc(100%-80px)] w-80 flex-col rounded-2xl">
+    <div className="vos-panel vos-panel-shadow fixed right-2.5 top-[108px] z-[300] flex max-h-[calc(100%-126px)] w-80 flex-col rounded-2xl">
       <div className="flex items-center justify-between border-b border-[var(--vos-border)] px-3.5 py-3">
         <span className="text-[13px] font-semibold text-[var(--vos-text-strong)]">Kommentare</span>
         <button

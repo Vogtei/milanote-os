@@ -88,96 +88,42 @@ export function BoardTopBar({
 
   return (
     <>
-      {/* One continuous panel, two rows — not TopBar's shared single-row
-          shell (that's still used as-is by the overview/trash headers).
-          Row one is personal/editing tools; row two, Milanote-inspired, is
-          every action that involves someone else seeing this board:
-          commenting, exporting to send, sharing access. */}
-      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex flex-col overflow-hidden rounded-b-2xl">
-        <div className="relative flex h-[52px] shrink-0 items-center gap-0.5 pl-3.5 pr-1.5">
-          <div className="flex min-w-0 flex-1 items-center gap-0.5">
-            <Breadcrumb chrome={chrome} />
-            {chrome.roleLabel && (
-              <span className="ml-2 hidden shrink-0 rounded bg-[var(--vos-hover-soft)] px-1.5 py-0.5 text-[11px] text-[var(--vos-muted)] sm:inline">
-                {chrome.roleLabel}
-              </span>
-            )}
-            {saveState === "error" && (
-              <span className="ml-2 shrink-0 text-[11px] text-[var(--vos-danger)]">
-                Nicht gespeichert
-              </span>
-            )}
-          </div>
-
-          <div className="pointer-events-none absolute inset-x-0 flex justify-center">
-            <span className="pointer-events-auto truncate px-24 text-[15px] font-semibold tracking-[-0.2px] text-[var(--vos-text-strong)]">
-              {chrome.title}
+      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 overflow-hidden rounded-b-2xl pl-3.5 pr-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5">
+          <Breadcrumb chrome={chrome} />
+          {chrome.roleLabel && (
+            <span className="ml-2 hidden shrink-0 rounded bg-[var(--vos-hover-soft)] px-1.5 py-0.5 text-[11px] text-[var(--vos-muted)] sm:inline">
+              {chrome.roleLabel}
             </span>
-          </div>
-
-          <div className="flex items-center gap-0.5">
-            {!readonly && (
-              <span className="hidden items-center md:flex">
-                <IconBtn label="Rückgängig" disabled={!editor.canUndo()} onClick={() => editor.undo()}>
-                  <UndoIcon />
-                </IconBtn>
-                <IconBtn label="Wiederholen" disabled={!editor.canRedo()} onClick={() => editor.redo()}>
-                  <RedoIcon />
-                </IconBtn>
-              </span>
-            )}
-
-            <IconBtn label="Suchen" active={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
-              <SearchIcon />
-            </IconBtn>
-
-            <div ref={zoomRef} className="relative">
-              <button
-                type="button"
-                title="Zoom"
-                aria-label="Zoom"
-                onClick={() => setZoomOpen((v) => !v)}
-                className={`flex h-[34px] shrink-0 items-center gap-0.5 rounded-lg px-2 text-[12px] font-medium tabular-nums transition-colors ${
-                  zoomOpen
-                    ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
-                    : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-                }`}
-              >
-                {Math.round(editor.getCamera().z * 100)}%
-                <ChevronDownIcon size={12} />
-              </button>
-              {zoomOpen && (
-                <ZoomMenu
-                  editor={editor}
-                  onPresent={() => {
-                    setZoomOpen(false);
-                    onPresent();
-                  }}
-                />
-              )}
-            </div>
-
-            <IconBtn
-              label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
-              onClick={() => setPreference(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? <MoonIcon /> : <SunIcon />}
-            </IconBtn>
-            <Link
-              href="/trash"
-              title="Papierkorb"
-              aria-label="Papierkorb"
-              className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg text-[var(--vos-muted)] transition-colors hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-            >
-              <TrashIcon />
-            </Link>
-            <IconBtn label="Einstellungen" active={settingsOpen} onClick={() => setSettingsOpen(true)}>
-              <SettingsIcon />
-            </IconBtn>
-          </div>
+          )}
+          {saveState === "error" && (
+            <span className="ml-2 shrink-0 text-[11px] text-[var(--vos-danger)]">
+              Nicht gespeichert
+            </span>
+          )}
         </div>
 
-        <div className="flex h-[44px] shrink-0 items-center justify-end gap-0.5 border-t border-[var(--vos-border)] pl-3.5 pr-1.5">
+        <div className="pointer-events-none absolute inset-x-0 flex justify-center">
+          <span className="pointer-events-auto truncate px-24 text-[15px] font-semibold tracking-[-0.2px] text-[var(--vos-text-strong)]">
+            {chrome.title}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-0.5">
+          {!readonly && (
+            <span className="hidden items-center md:flex">
+              <IconBtn label="Rückgängig" disabled={!editor.canUndo()} onClick={() => editor.undo()}>
+                <UndoIcon />
+              </IconBtn>
+              <IconBtn label="Wiederholen" disabled={!editor.canRedo()} onClick={() => editor.redo()}>
+                <RedoIcon />
+              </IconBtn>
+            </span>
+          )}
+
+          <IconBtn label="Suchen" active={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
+            <SearchIcon />
+          </IconBtn>
           <IconBtn label="Kommentare" onClick={onToggleComments}>
             <CommentIcon />
           </IconBtn>
@@ -197,6 +143,50 @@ export function BoardTopBar({
           </div>
 
           {chrome.share}
+
+          <div ref={zoomRef} className="relative">
+            <button
+              type="button"
+              title="Zoom"
+              aria-label="Zoom"
+              onClick={() => setZoomOpen((v) => !v)}
+              className={`flex h-[34px] shrink-0 items-center gap-0.5 rounded-lg px-2 text-[12px] font-medium tabular-nums transition-colors ${
+                zoomOpen
+                  ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
+                  : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+              }`}
+            >
+              {Math.round(editor.getCamera().z * 100)}%
+              <ChevronDownIcon size={12} />
+            </button>
+            {zoomOpen && (
+              <ZoomMenu
+                editor={editor}
+                onPresent={() => {
+                  setZoomOpen(false);
+                  onPresent();
+                }}
+              />
+            )}
+          </div>
+
+          <IconBtn
+            label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
+            onClick={() => setPreference(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <MoonIcon /> : <SunIcon />}
+          </IconBtn>
+          <Link
+            href="/trash"
+            title="Papierkorb"
+            aria-label="Papierkorb"
+            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg text-[var(--vos-muted)] transition-colors hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+          >
+            <TrashIcon />
+          </Link>
+          <IconBtn label="Einstellungen" active={settingsOpen} onClick={() => setSettingsOpen(true)}>
+            <SettingsIcon />
+          </IconBtn>
         </div>
       </header>
 
@@ -331,7 +321,7 @@ function ZoomMenu({
 // Items store plain strings, so searching is a direct read — no rich-text
 // rendering pass like the tldraw version needed. Switching on the type keeps
 // this honest: adding an item kind with searchable text won't silently miss it.
-function itemText(item: AnyItem): string {
+export function itemText(item: AnyItem): string {
   switch (item.type) {
     case "note":
       return blocksToPlainText(item.props.blocks);

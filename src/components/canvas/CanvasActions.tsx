@@ -226,7 +226,7 @@ export function CanvasActionsProvider({
 
       {prompt && (
         <div
-          className="fixed inset-0 z-[400] flex items-start justify-center bg-black/40 pt-[18vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[400] flex items-start justify-center bg-black/40 pt-[18vh]"
           onPointerDown={(e) => e.target === e.currentTarget && setPrompt(null)}
         >
           {prompt === "link" ? (

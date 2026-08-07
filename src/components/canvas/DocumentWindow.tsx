@@ -44,7 +44,7 @@ export function DocumentWindow({
     editor.store.transact(() => editor.store.updateProps(itemId, patch as never));
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-stretch justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-6">
+    <div className="fixed inset-0 z-[400] flex items-stretch justify-center bg-black/45 p-0 sm:items-center sm:p-6">
       <div className="vos-panel vos-panel-shadow flex h-full w-full flex-col overflow-hidden rounded-none sm:h-[min(760px,100%)] sm:max-w-3xl sm:rounded-2xl">
         <header className="flex items-center gap-2 border-b border-[var(--vos-border)] px-3 py-2.5">
           <button

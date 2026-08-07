@@ -48,13 +48,24 @@ function toolsHeight(count: number): number {
 /** Drag-only tools: no native draggable, no click-to-arm — a custom
  *  pointer-driven drag (see BoardShell's startToolDrag) is the only way to
  *  create them, with its own live-following ghost instead of the browser's
- *  static drag snapshot. Select and arrow are exempt: arrow has to be armed
- *  by a click so a drag *on the canvas* can draw it, and select isn't a
- *  placement tool. Popover tools (shape/draw) are exempt too — their
- *  individual glyphs keep native drag (see ShapePicker). */
+ *  static drag snapshot. Select, arrow and link are exempt: arrow has to be
+ *  armed by a click so a drag *on the canvas* can draw it, link opens a URL
+ *  prompt instead of dropping a premade card, and select isn't a placement
+ *  tool. Popover tools (shape/draw) are exempt too — their individual
+ *  glyphs keep native drag (see ShapePicker). In practice this only ever
+ *  runs on the drag group below (CLICK_GROUP_IDS tools are rendered
+ *  separately and never call it), but the guard clauses stay accurate. */
 function isDragOnly(tool: ToolSpec): boolean {
-  return !tool.popover && tool.id !== "select" && tool.id !== "arrow";
+  return !tool.popover && tool.id !== "select" && tool.id !== "arrow" && tool.id !== "link";
 }
+
+/** Tools that act on click instead of being dragged onto the board — shape
+ *  and draw open a configuration popover, arrow arms itself for a drag *on
+ *  the canvas*, and link opens a URL prompt. Milanote pins these together
+ *  in their own block above the trash button, visually distinct from the
+ *  drag group above, with no drag-affordance hover/press animation since
+ *  they were never meant to be dragged in the first place. */
+const CLICK_GROUP_ORDER: ToolId[] = ["shape", "draw", "arrow", "link"];
 
 export function CanvasRail({
   editor,
@@ -105,18 +116,27 @@ export function CanvasRail({
   const tools = readonly ? TOOLS.filter((tool) => tool.id === "select" || tool.id === "comment") : TOOLS;
   const showTrash = !readonly && !!onToggleTrash;
 
-  const railH = windowH > 0 ? Math.max(MIN_RAIL_H, windowH - CHROME_CLEARANCE) : MIN_RAIL_H;
-  const trashBudget = showTrash ? BUTTON_H + TRASH_BLOCK_GAP : 0;
-  const budget = railH - PADDING - trashBudget;
+  // The click group (shape/draw/arrow/link) never appears for a readonly
+  // rail — none of those ids survive the `tools` filter above — so it's
+  // naturally empty there without special-casing readonly again here.
+  const clickTools = CLICK_GROUP_ORDER.map((id) => tools.find((t) => t.id === id)).filter(
+    (t): t is ToolSpec => !!t,
+  );
+  const topTools = tools.filter((t) => !CLICK_GROUP_ORDER.includes(t.id));
 
-  let visible = tools;
+  const railH = windowH > 0 ? Math.max(MIN_RAIL_H, windowH - CHROME_CLEARANCE) : MIN_RAIL_H;
+  const clickBudget = clickTools.length > 0 ? TRASH_BLOCK_GAP + toolsHeight(clickTools.length) : 0;
+  const trashBudget = showTrash ? TRASH_BLOCK_GAP + BUTTON_H : 0;
+  const budget = railH - PADDING - clickBudget - trashBudget;
+
+  let visible = topTools;
   let overflowed: ToolSpec[] = [];
-  if (toolsHeight(tools.length) > budget) {
+  if (toolsHeight(topTools.length) > budget) {
     const budgetWithEllipsis = budget - BUTTON_H - GAP;
-    let k = tools.length - 1;
+    let k = topTools.length - 1;
     while (k > 1 && toolsHeight(k) > budgetWithEllipsis) k--;
-    visible = tools.slice(0, k);
-    overflowed = tools.slice(k);
+    visible = topTools.slice(0, k);
+    overflowed = topTools.slice(k);
   }
 
   const runToolClick = (tool: ToolSpec) => {
@@ -126,14 +146,15 @@ export function CanvasRail({
       return;
     }
     setPopover(null);
-    // Every placement tool is drag-only now — dropping it onto the board is
-    // what creates it (see runTool's `at`-driven branches, fed by onDragStart
-    // below and BoardShell's onDrop). A click here would otherwise create or
-    // open something at the viewport centre with no further gesture, which
-    // is exactly what this guards against. Select and arrow are the only
+    // The drag group creates its item by being dragged onto the board, not
+    // by being clicked — a click here would otherwise create or open
+    // something at the viewport centre with no further gesture, which is
+    // exactly what this guards against. Select, arrow and link are the
     // exceptions: arrow has to be armed so a drag *on the canvas* can draw
-    // it, and select isn't a placement tool at all.
-    if (tool.id !== "select" && tool.id !== "arrow") return;
+    // it, link opens a URL prompt instead of dropping a premade card, and
+    // select isn't a placement tool at all — all three (plus shape/draw,
+    // handled above) belong to the click group, never the drag group.
+    if (tool.id !== "select" && tool.id !== "arrow" && tool.id !== "link") return;
     runTool(editor, actions, tool.id);
   };
 
@@ -178,15 +199,37 @@ export function CanvasRail({
         </div>
       )}
 
-      {showTrash && (
-        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-2 pt-2">
-          <span className="h-px w-8 shrink-0 bg-[var(--vos-border)] opacity-60" />
-          <RailButton
-            label="Papierkorb"
-            active={trashOpen}
-            icon={<TrashIcon size={22} />}
-            onClick={() => onToggleTrash?.()}
-          />
+      {(clickTools.length > 0 || showTrash) && (
+        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-0.5">
+          {clickTools.length > 0 && (
+            <div className="flex w-full shrink-0 flex-col items-center gap-0.5 pt-2">
+              <span className="mb-1.5 h-px w-8 shrink-0 bg-[var(--vos-border)] opacity-60" />
+              {clickTools.map((tool) => (
+                <div key={tool.id} className="relative shrink-0">
+                  <RailButton
+                    label={tool.label}
+                    active={active === tool.id}
+                    icon={<tool.icon size={22} />}
+                    onClick={() => runToolClick(tool)}
+                  />
+                  {popover === "shape" && tool.popover === "shape" && <ShapePicker editor={editor} />}
+                  {popover === "draw" && tool.popover === "draw" && <DrawOptions editor={editor} />}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showTrash && (
+            <div className="flex w-full shrink-0 flex-col items-center gap-2 pt-2">
+              <span className="h-px w-8 shrink-0 bg-[var(--vos-border)] opacity-60" />
+              <RailButton
+                label="Papierkorb"
+                active={trashOpen}
+                icon={<TrashIcon size={22} />}
+                onClick={() => onToggleTrash?.()}
+              />
+            </div>
+          )}
         </div>
       )}
     </aside>
@@ -435,8 +478,10 @@ export function RailButton({
             }
           : undefined
       }
-      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color,transform] duration-[220ms] ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:translate-x-[3px] active:translate-x-[8px] active:duration-[120ms] active:ease-[cubic-bezier(0.4,0,0.2,1)] ${
-        dragToolId || onPointerDown ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      className={`flex h-[50px] w-[52px] shrink-0 flex-col items-center gap-[3px] rounded-[10px] border-0 pb-1.5 pt-2 text-[10px] font-medium transition-[background-color,color] duration-150 ${
+        dragToolId || onPointerDown
+          ? "cursor-grab active:cursor-grabbing transition-[background-color,color,transform] duration-[220ms] ease-[cubic-bezier(0.25,0.8,0.25,1)] hover:translate-x-[3px] active:translate-x-[8px] active:duration-[120ms] active:ease-[cubic-bezier(0.4,0,0.2,1)]"
+          : "cursor-pointer"
       } ${
         active
           ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"

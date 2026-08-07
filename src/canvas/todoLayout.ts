@@ -46,11 +46,17 @@ export function todoRows(item: Item<"todo">): TodoRow[] {
 /** The card height needed to show every row without clipping — a to-do has
  *  no manual resize handle (see geometry.ts's RESIZE_HANDLES), this is its
  *  only sizing mechanism, mirroring `todoRows`' own layout math so the two
- *  never drift apart. */
+ *  never drift apart.
+ *
+ *  `todoRows` stops once a row's *top* passes the bottom threshold — fine
+ *  when there's slack, but using that same top-edge check as the required
+ *  height left no room for the last row's own height (it clipped by
+ *  TODO_ROW_H - BOTTOM_PADDING, ~8px). The required height has to clear the
+ *  last row's *bottom* instead, i.e. count full rows, not count - 1. */
 export function requiredTodoHeight(title: string, entryCount: number): number {
   const headerH = title ? TITLE_H : 0;
   const count = Math.max(1, entryCount);
-  return TOP_PADDING + headerH + (count - 1) * TODO_ROW_H + BOTTOM_PADDING;
+  return TOP_PADDING + headerH + count * TODO_ROW_H + BOTTOM_PADDING;
 }
 
 export type TodoHit = { row: TodoRow; zone: "checkbox" | "text" };

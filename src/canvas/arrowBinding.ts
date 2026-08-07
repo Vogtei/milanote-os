@@ -1,5 +1,5 @@
 import type { AnyItem, ArrowBinding, Item, Vec } from "@/canvas/types";
-import { itemBounds } from "@/canvas/geometry";
+import { distance, itemBounds } from "@/canvas/geometry";
 
 /** Minimal read access this module needs — satisfied by both BoardStore and
  *  the plain item-array export uses, without importing the store class. */
@@ -44,6 +44,38 @@ export function anchorFor(target: AnyItem, point: Vec): Vec {
   const x = bounds.w === 0 ? 0.5 : (point.x - bounds.x) / bounds.w;
   const y = bounds.h === 0 ? 0.5 : (point.y - bounds.y) / bounds.h;
   return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
+}
+
+/** The 4 corners + centre, as fractional anchors — the magnetic snap
+ *  points. Deliberately excludes edge midpoints: those still bind via the
+ *  continuous `anchorFor` fallback, only these 5 "obvious" spots pull the
+ *  arrow in like a diagramming tool's connection points. */
+const SNAP_ANCHORS: Vec[] = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 1, y: 1 },
+  { x: 0.5, y: 0.5 },
+];
+const SNAP_RADIUS_PX = 14;
+
+/** Like `anchorFor`, but magnetizes onto `target`'s corners/centre when
+ *  `point` lands within a screen-space radius of one — dragging an arrow end
+ *  near a corner locks it exactly onto that corner instead of wherever the
+ *  cursor happens to be. `cameraZ` converts the screen-space radius into
+ *  world units so the snap feels the same size at any zoom level. */
+export function snappedAnchorFor(target: AnyItem, point: Vec, cameraZ: number): Vec {
+  const threshold = SNAP_RADIUS_PX / cameraZ;
+  let best: Vec | null = null;
+  let bestDist = threshold;
+  for (const anchor of SNAP_ANCHORS) {
+    const d = distance(anchorPoint(target, anchor), point);
+    if (d <= bestDist) {
+      bestDist = d;
+      best = anchor;
+    }
+  }
+  return best ?? anchorFor(target, point);
 }
 
 /** Items an arrow end can bind to — deliberately excludes other arrows/draw

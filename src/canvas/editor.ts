@@ -13,7 +13,7 @@ import {
 import type { HandleId } from "@/canvas/geometry";
 import { requiredTodoHeight, todoRowAt } from "@/canvas/todoLayout";
 import { containerLabelRect } from "@/canvas/containerLayout";
-import { anchorFor, anchorPoint, resolveArrowEndpoints } from "@/canvas/arrowBinding";
+import { anchorPoint, resolveArrowEndpoints, snappedAnchorFor } from "@/canvas/arrowBinding";
 import {
   boundsOfPoints,
   distance,
@@ -632,11 +632,12 @@ export class BoardEditor {
         const item = this.store.getItem(this.interaction.id);
         if (!item || item.type !== "arrow") return;
         const target = this.bindableTargetAt(world, item.id);
-        const end = target ? anchorPoint(target, anchorFor(target, world)) : world;
+        const anchor = target ? snappedAnchorFor(target, world, this.camera.z) : null;
+        const end = target && anchor ? anchorPoint(target, anchor) : world;
         this.store.transact(() => {
           this.store.updateProps(item.id, {
             end,
-            endBinding: target ? { itemId: target.id, anchor: anchorFor(target, world) } : undefined,
+            endBinding: target && anchor ? { itemId: target.id, anchor } : undefined,
           } as never);
           // item.x/y is the start point itself, not a bounding-box corner —
           // it must stay exactly what beginArrow set it to. w/h are only an
@@ -652,7 +653,7 @@ export class BoardEditor {
         const item = this.store.getItem(itemId);
         if (!item || item.type !== "arrow") return;
         const target = this.bindableTargetAt(world, itemId);
-        const anchor = target ? anchorFor(target, world) : null;
+        const anchor = target ? snappedAnchorFor(target, world, this.camera.z) : null;
         const point = target && anchor ? anchorPoint(target, anchor) : world;
         const binding = target && anchor ? { itemId: target.id, anchor } : undefined;
         const other = resolveArrowEndpoints(this.store, item)[end === "start" ? "end" : "start"];
@@ -844,12 +845,13 @@ export class BoardEditor {
     // immediately — matches every diagramming tool's "drag from the box"
     // gesture, rather than requiring a separate step to connect afterwards.
     const target = this.bindableTargetAt(world, "");
-    const start = target ? anchorPoint(target, anchorFor(target, world)) : world;
+    const anchor = target ? snappedAnchorFor(target, world, this.camera.z) : null;
+    const start = target && anchor ? anchorPoint(target, anchor) : world;
     const item = this.createItem("arrow", world, {
       end: start,
       color: this.color,
       width: Math.max(2, this.strokeWidth / 2),
-      startBinding: target ? { itemId: target.id, anchor: anchorFor(target, world) } : undefined,
+      startBinding: target && anchor ? { itemId: target.id, anchor } : undefined,
     });
     this.store.transact(() =>
       this.store.update(item.id, { x: start.x, y: start.y, w: 0, h: 0 }),

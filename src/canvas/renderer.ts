@@ -832,6 +832,14 @@ function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState, lookup
   ctx.strokeStyle = palette.accent;
   ctx.lineWidth = hairline;
   for (const item of selected) {
+    if (item.type === "shape") {
+      // A generic padded rectangle around a triangle/star/line reads as
+      // "the wrong thing is selected" — trace the shape's own silhouette
+      // instead, the exact path drawShape() already fills/strokes.
+      shapePath(ctx, item);
+      ctx.stroke();
+      continue;
+    }
     roundRect(ctx, inflate(selectionBounds(item, lookup), 2 / camera.z), 8 / camera.z);
     ctx.stroke();
   }

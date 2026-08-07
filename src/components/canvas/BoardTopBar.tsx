@@ -23,7 +23,7 @@ import {
   PlusIcon,
   FitIcon,
 } from "@/components/icons/VosIcons";
-import { CommentIcon, TrashIcon } from "@/components/icons/MilanoteIcons";
+import { CommentIcon } from "@/components/icons/MilanoteIcons";
 import { SettingsModal } from "@/components/SettingsModal";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
@@ -88,7 +88,7 @@ export function BoardTopBar({
 
   return (
     <>
-      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 overflow-hidden rounded-b-2xl pl-3.5 pr-1.5">
+      <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 rounded-b-2xl pl-3.5 pr-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-0.5">
           <Breadcrumb chrome={chrome} />
           {chrome.roleLabel && (
@@ -176,14 +176,6 @@ export function BoardTopBar({
           >
             {theme === "dark" ? <MoonIcon /> : <SunIcon />}
           </IconBtn>
-          <Link
-            href="/trash"
-            title="Papierkorb"
-            aria-label="Papierkorb"
-            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg text-[var(--vos-muted)] transition-colors hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-          >
-            <TrashIcon />
-          </Link>
           <IconBtn label="Einstellungen" active={settingsOpen} onClick={() => setSettingsOpen(true)}>
             <SettingsIcon />
           </IconBtn>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BoardEditor } from "@/canvas/editor";
 import type { ToolId } from "@/canvas/editor";
-import type { Doc } from "@/canvas/types";
+import type { Doc, ShapeKind } from "@/canvas/types";
 import { exportBoardPng } from "@/canvas/export";
 import { PALETTES } from "@/canvas/theme";
 import { saveBoardDoc } from "@/lib/board-doc";
@@ -14,7 +14,7 @@ import { SelectionToolbar } from "@/components/canvas/SelectionToolbar";
 import { MobileBar } from "@/components/canvas/MobileBar";
 import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/CanvasActions";
 import { BoardTopBar, type BoardChrome } from "@/components/canvas/BoardTopBar";
-import { DRAG_MIME } from "@/components/canvas/tools";
+import { DRAG_MIME, SHAPE_KIND_MIME } from "@/components/canvas/tools";
 import { ZoomControls } from "@/components/vos/ZoomControls";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
@@ -155,9 +155,10 @@ function BoardSurface({
       const tool = e.dataTransfer.getData(DRAG_MIME) as ToolId;
       if (!tool || readonly) return;
       e.preventDefault();
+      const shapeKind = e.dataTransfer.getData(SHAPE_KIND_MIME) as ShapeKind | "";
       const rect = e.currentTarget.getBoundingClientRect();
       const at = editor.screenToWorld({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      runTool(editor, actions, tool, at);
+      runTool(editor, actions, tool, at, shapeKind || undefined);
     },
     [editor, actions, readonly],
   );

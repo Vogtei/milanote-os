@@ -5,7 +5,7 @@ import type { BoardEditor, ToolId } from "@/canvas/editor";
 import type { ShapeKind } from "@/canvas/types";
 import { SHAPE_KINDS } from "@/canvas/types";
 import { NOTE_COLORS, PALETTES } from "@/canvas/theme";
-import { DRAG_MIME, TOOLS } from "@/components/canvas/tools";
+import { DRAG_MIME, SHAPE_KIND_MIME, TOOLS } from "@/components/canvas/tools";
 import { useCanvasActions } from "@/components/canvas/CanvasActions";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
@@ -76,12 +76,23 @@ export function runTool(
   actions: ReturnType<typeof useCanvasActions>,
   id: ToolId,
   at?: { x: number; y: number },
+  shapeKind?: ShapeKind,
 ) {
   switch (id) {
     case "link": return actions.promptLink(at);
     case "board": return actions.createBoard(at);
     case "image": return actions.pickImage(at);
     case "file": return actions.pickFile(at);
+    case "shape":
+      // A specific glyph was dragged straight out of the popover — place it
+      // at the drop point instead of just arming the tool for a manual draw.
+      if (at && shapeKind) {
+        const item = editor.createItem("shape", at, { kind: shapeKind });
+        editor.setSelection([item.id]);
+        return;
+      }
+      editor.setTool(id);
+      return;
     default:
       // Placement tools arm themselves; if a drop point is known, place the
       // item there immediately instead of making the user click twice.
@@ -111,7 +122,13 @@ function ShapePicker({ editor }: { editor: BoardEditor }) {
           aria-label={kind}
           aria-pressed={current === kind}
           onClick={() => editor.setShapeKind(kind)}
-          className={`grid h-[46px] place-items-center rounded-xl transition-colors ${
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(DRAG_MIME, "shape");
+            e.dataTransfer.setData(SHAPE_KIND_MIME, kind);
+            e.dataTransfer.effectAllowed = "copy";
+          }}
+          className={`grid h-[46px] cursor-grab place-items-center rounded-xl transition-colors active:cursor-grabbing ${
             current === kind
               ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
               : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveBoardAccess } from "@/lib/access-core";
-import { getNode } from "@/lib/nodes";
+import { getNode, listChildren } from "@/lib/nodes";
 import { loadBoardDoc } from "@/lib/board-doc";
 import { BoardShell } from "@/components/canvas/BoardShell";
 import { ShareDialog } from "@/components/ShareDialog";
@@ -27,6 +27,13 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
   const { node, role } = access;
   const parent = node.parentId ? await getNode(node.parentId) : null;
   const doc = await loadBoardDoc(id);
+
+  // Powers the board-switcher dropdown in the header — other boards the user
+  // can jump to sideways without going back to the overview first.
+  const children = await listChildren(node.parentId);
+  const siblings = children
+    .filter((child) => child.type === "BOARD" && child.id !== node.id)
+    .map((child) => ({ id: child.id, title: child.title }));
 
   // Folder cards show how much is inside them. The canvas can't know that, and
   // storing the number on the card would go stale the moment the other board
@@ -60,6 +67,7 @@ export default async function BoardPage(props: PageProps<"/board/[id]">) {
         title: node.title,
         parentHref: parent?.type === "BOARD" ? `/board/${parent.id}` : "/",
         parentLabel: parent ? parent.title : "Übersicht",
+        siblings,
         roleLabel:
           role === "OWNER"
             ? null

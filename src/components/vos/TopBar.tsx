@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ChevronDownIcon } from "@/components/icons/VosIcons";
 
-// The floating glass topbar. Geometry (52px tall, 16px radius, inset 10/8,
-// 14px left / 6px right padding) matches what the visualos.app chrome
+// The docked glass topbar. Flush with the viewport's top edge, full width —
+// only the bottom corners round off. Geometry otherwise (52px tall, 14px
+// left / 6px right padding) still matches what the visualos.app chrome
 // measures at in the browser; the markup and styling are our own.
 export function TopBar({ children }: { children: React.ReactNode }) {
   return (
-    <header className="vos-panel vos-panel-shadow absolute left-2.5 right-2.5 top-2 z-[300] flex h-[52px] items-center gap-0.5 rounded-2xl pl-3.5 pr-1.5">
+    <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 rounded-b-2xl pl-3.5 pr-1.5">
       {children}
     </header>
   );
@@ -41,10 +42,6 @@ export function Crumb({ label, href }: { label: string; href?: string }) {
       {label}
     </Link>
   );
-}
-
-export function CrumbSeparator() {
-  return <span className="mx-1 text-[var(--vos-faint)]">/</span>;
 }
 
 export function TopBarSpacer() {

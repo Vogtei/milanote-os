@@ -5,14 +5,7 @@ import Link from "next/link";
 import type { BoardEditor } from "@/canvas/editor";
 import type { AnyItem } from "@/canvas/types";
 import { blocksToPlainText } from "@/canvas/richText";
-import {
-  TopBar,
-  WorkspaceCrumb,
-  CrumbDivider,
-  Crumb,
-  CrumbSeparator,
-  TopBarSpacer,
-} from "@/components/vos/TopBar";
+import { TopBar, TopBarSpacer } from "@/components/vos/TopBar";
 import { IconBtn } from "@/components/vos/IconBtn";
 import {
   SearchIcon,
@@ -22,6 +15,7 @@ import {
   KebabIcon,
   SunIcon,
   MoonIcon,
+  ChevronDownIcon,
 } from "@/components/icons/VosIcons";
 import { CommentIcon, TrashIcon } from "@/components/icons/MilanoteIcons";
 import { signOutAction } from "@/lib/auth-actions";
@@ -32,6 +26,9 @@ export type BoardChrome = {
   title: string;
   parentHref: string;
   parentLabel: string;
+  /** Other boards under the same parent, for the switcher dropdown — current
+   *  board already excluded by the caller. */
+  siblings: { id: string; title: string }[];
   roleLabel: string | null;
   share?: React.ReactNode;
 };
@@ -53,19 +50,12 @@ export function BoardTopBar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const readonly = editor.isReadonly();
+  const { theme, setPreference } = useTheme();
 
   return (
     <>
       <TopBar>
-        <WorkspaceCrumb label="Workspace" />
-        <CrumbDivider />
-        {/* The parent crumb is the first thing to go when space runs out —
-            the current board's own name has to survive on a phone. */}
-        <span className="hidden min-w-0 shrink items-center sm:flex">
-          <Crumb label={chrome.parentLabel} href={chrome.parentHref} />
-          <CrumbSeparator />
-        </span>
-        <Crumb label={chrome.title} />
+        <BoardSwitcher chrome={chrome} />
         {chrome.roleLabel && (
           <span className="ml-2 hidden shrink-0 rounded bg-[var(--vos-hover-soft)] px-1.5 py-0.5 text-[11px] text-[var(--vos-muted)] sm:inline">
             {chrome.roleLabel}
@@ -104,6 +94,12 @@ export function BoardTopBar({
           </IconBtn>
         </span>
         {chrome.share}
+        <IconBtn
+          label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
+          onClick={() => setPreference(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? <MoonIcon /> : <SunIcon />}
+        </IconBtn>
         <div className="relative">
           <IconBtn label="Menü" active={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
             <KebabIcon />
@@ -123,6 +119,55 @@ export function BoardTopBar({
   );
 }
 
+// Current board's title + chevron, standing in for the old static path
+// breadcrumb — click opens a switcher to move up a level or sideways to a
+// sibling board, instead of only ever reading where you already are.
+function BoardSwitcher({ chrome }: { chrome: BoardChrome }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocPointerDown(e: PointerEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown);
+  }, [open]);
+
+  const row =
+    "flex w-full min-w-0 items-center gap-2 truncate rounded-lg px-2 py-2 text-left text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]";
+
+  return (
+    <div ref={ref} className="relative min-w-0 shrink">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-w-0 items-center gap-1 rounded-[7px] px-1 py-1 text-[var(--vos-text)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+      >
+        <span className="truncate text-[15px] font-medium tracking-[-0.2px]">{chrome.title}</span>
+        <ChevronDownIcon size={14} className="shrink-0" />
+      </button>
+      {open && (
+        <div className="vos-panel vos-panel-shadow absolute left-0 top-[38px] z-[310] flex w-64 flex-col rounded-xl p-1.5">
+          <Link href={chrome.parentHref} onClick={() => setOpen(false)} className={row}>
+            ↑ {chrome.parentLabel}
+          </Link>
+          {chrome.siblings.length > 0 && (
+            <>
+              <span className="my-1 h-px bg-[var(--vos-border)]" />
+              {chrome.siblings.map((board) => (
+                <Link key={board.id} href={`/board/${board.id}`} onClick={() => setOpen(false)} className={row}>
+                  {board.title}
+                </Link>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BoardMenu({
   onClose,
   onExport,
@@ -133,7 +178,6 @@ function BoardMenu({
   onToggleComments: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { preference, setPreference } = useTheme();
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
@@ -159,26 +203,6 @@ function BoardMenu({
       <button className={`${row} md:hidden`} onClick={() => { onClose(); onExport(); }}>
         <ExportImageIcon size={18} /> Als PNG speichern
       </button>
-
-      <span className="px-2 pb-1 pt-2 text-[11px] uppercase tracking-wide text-[var(--vos-faint)]">
-        Erscheinungsbild
-      </span>
-      <div className="flex gap-1 px-1 pb-1">
-        {(["dark", "light", "system"] as const).map((option) => (
-          <button
-            key={option}
-            onClick={() => setPreference(option)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] ${
-              preference === option
-                ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
-                : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)]"
-            }`}
-          >
-            {option === "dark" ? <MoonIcon size={14} /> : option === "light" ? <SunIcon size={14} /> : null}
-            {option === "dark" ? "Dunkel" : option === "light" ? "Hell" : "Auto"}
-          </button>
-        ))}
-      </div>
 
       <span className="my-1 h-px bg-[var(--vos-border)]" />
       <Link href="/trash" className={row}>

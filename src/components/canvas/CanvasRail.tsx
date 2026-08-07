@@ -12,6 +12,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { EraserIcon, HighlighterIcon, KebabHorizontalIcon } from "@/components/icons/VosIcons";
 import { TrashIcon } from "@/components/icons/ContentIcons";
 import { ShapeGlyph } from "@/components/canvas/ShapeGlyph";
+import { ItemTrashPanel } from "@/components/canvas/ItemTrashPanel";
 
 /** Fixed pixel dimensions of a RailButton (h-[50px]) plus the rail's own
  *  gap-0.5 (2px) and py-2.5 (10px top + 10px bottom) — used to work out how
@@ -70,10 +71,7 @@ const CLICK_GROUP_ORDER: ToolId[] = ["shape", "draw", "arrow", "link"];
 export function CanvasRail({
   editor,
   canComment = false,
-  trashOpen = false,
-  onToggleTrash,
   onToolDragStart,
-  onToolActivate,
 }: {
   editor: BoardEditor;
   /** COMMENT-role viewers can't edit the board (editor.isReadonly() is true
@@ -81,18 +79,11 @@ export function CanvasRail({
    *  with just Wählen/Kommentar covers that instead of hiding the rail
    *  outright the way plain VIEW-role readonly does. */
   canComment?: boolean;
-  trashOpen?: boolean;
-  onToggleTrash?: () => void;
   onToolDragStart?: (tool: ToolSpec, e: React.PointerEvent) => void;
-  /** Fires the moment any tool is used — clicked, armed, or dragged. Closes
-   *  whatever left-docked sidepanel (currently just Papierkorb) is open, so
-   *  using a tool always drops you back onto the plain rail instead of
-   *  leaving a panel floating behind it. */
-  onToolActivate?: () => void;
 }) {
   useEditorTick(editor);
   const actions = useCanvasActions();
-  const [popover, setPopover] = useState<"shape" | "draw" | "overflow" | null>(null);
+  const [popover, setPopover] = useState<"shape" | "draw" | "overflow" | "trash" | null>(null);
   const railRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -120,7 +111,7 @@ export function CanvasRail({
   if (readonly && !canComment) return null;
   const active = editor.getTool();
   const tools = readonly ? TOOLS.filter((tool) => tool.id === "select" || tool.id === "comment") : TOOLS;
-  const showTrash = !readonly && !!onToggleTrash;
+  const showTrash = !readonly;
 
   // The click group (shape/draw/arrow/link) never appears for a readonly
   // rail — none of those ids survive the `tools` filter above — so it's
@@ -145,13 +136,7 @@ export function CanvasRail({
     overflowed = topTools.slice(k);
   }
 
-  const handleToolDragStart = (tool: ToolSpec, e: React.PointerEvent) => {
-    onToolActivate?.();
-    onToolDragStart?.(tool, e);
-  };
-
   const runToolClick = (tool: ToolSpec) => {
-    onToolActivate?.();
     if (tool.popover) {
       editor.setTool(tool.id);
       setPopover((open) => (open === tool.popover ? null : tool.popover!));
@@ -181,13 +166,7 @@ export function CanvasRail({
       // `railH`) while letting the rail shrink to its natural content height
       // whenever there's slack.
       style={{ maxHeight: `${railH}px` }}
-      // Slides right, fluidly, to sit beside the Papierkorb sidebar instead
-      // of overlapping it — the panel is a fixed w-80 flush to the left
-      // edge, so 330px clears it with the same 10px gap the rail keeps from
-      // the edge itself.
-      className={`vos-panel pointer-events-auto absolute top-1/2 z-[310] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[15px] py-2.5 transition-[left] duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] md:flex ${
-        trashOpen ? "left-[330px]" : "left-2.5"
-      }`}
+      className="vos-panel pointer-events-auto absolute left-2.5 top-1/2 z-[280] hidden w-16 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[15px] py-2.5 md:flex"
       aria-label="Werkzeuge"
     >
       {visible.map((tool) => (
@@ -197,7 +176,7 @@ export function CanvasRail({
             active={active === tool.id}
             icon={<tool.icon size={22} />}
             dragToolId={isDragOnly(tool) ? undefined : tool.id}
-            onPointerDown={isDragOnly(tool) ? (e) => handleToolDragStart(tool, e) : undefined}
+            onPointerDown={isDragOnly(tool) ? (e) => onToolDragStart?.(tool, e) : undefined}
             onClick={() => runToolClick(tool)}
           />
           {popover === "shape" && tool.popover === "shape" && <ShapePicker editor={editor} />}
@@ -218,7 +197,7 @@ export function CanvasRail({
               tools={overflowed}
               active={active}
               onPick={runToolClick}
-              onToolDragStart={handleToolDragStart}
+              onToolDragStart={onToolDragStart}
             />
           )}
         </div>
@@ -245,14 +224,15 @@ export function CanvasRail({
           )}
 
           {showTrash && (
-            <div className="flex w-full shrink-0 flex-col items-center gap-2 pt-2">
+            <div className="relative flex w-full shrink-0 flex-col items-center gap-2 pt-2">
               <span className="h-px w-8 shrink-0 bg-[var(--vos-border)] opacity-60" />
               <RailButton
                 label="Papierkorb"
-                active={trashOpen}
+                active={popover === "trash"}
                 icon={<TrashIcon size={22} />}
-                onClick={() => onToggleTrash?.()}
+                onClick={() => setPopover((open) => (open === "trash" ? null : "trash"))}
               />
+              {popover === "trash" && <ItemTrashPanel editor={editor} />}
             </div>
           )}
         </div>

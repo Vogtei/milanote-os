@@ -4,7 +4,6 @@ import type { BoardEditor } from "@/canvas/editor";
 import type { AnyItem, TrashEntry } from "@/canvas/types";
 import { itemText } from "@/components/canvas/BoardTopBar";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
-import { CloseIcon } from "@/components/icons/VosIcons";
 import {
   NoteIcon,
   LinkIcon,
@@ -22,7 +21,9 @@ import {
 
 // Per-board recycle bin for individually deleted canvas items (a card, an
 // image, a stroke) — not the board/folder trash at /trash, a different
-// granularity entirely. Same browse-only sidebar shell as CommentsPanel.
+// granularity entirely. Opens as a small flyout beside the rail's
+// Papierkorb button, the same popover language as ShapePicker/DrawOptions
+// rather than a docked sidebar — matches Milanote's own trash flyout.
 const TYPE_ICON: Record<AnyItem["type"], (props: { size?: number }) => React.ReactElement> = {
   note: NoteIcon,
   text: TextIcon,
@@ -56,30 +57,14 @@ function itemLabel(item: AnyItem): string {
   return text || TYPE_LABEL[item.type];
 }
 
-export function ItemTrashPanel({
-  editor,
-  open,
-  onClose,
-}: {
-  editor: BoardEditor;
-  open: boolean;
-  onClose: () => void;
-}) {
+export function ItemTrashPanel({ editor }: { editor: BoardEditor }) {
   useEditorTick(editor);
-  if (!open) return null;
   const entries = editor.getTrashedItems();
 
   return (
-    <div className="vos-panel fixed left-0 top-[52px] bottom-0 z-[300] flex w-80 flex-col border-r border-[var(--vos-border)]">
-      <div className="flex items-center justify-between border-b border-[var(--vos-border)] px-3.5 py-3">
+    <div className="vos-panel vos-panel-shadow absolute left-[60px] bottom-0 z-[400] flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-2xl">
+      <div className="border-b border-[var(--vos-border)] px-3.5 py-3">
         <span className="text-[13px] font-semibold text-[var(--vos-text-strong)]">Papierkorb</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="grid h-7 w-7 place-items-center rounded-lg text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-        >
-          <CloseIcon size={16} />
-        </button>
       </div>
 
       <ul className="flex-1 overflow-y-auto p-2">

@@ -18,7 +18,6 @@ import { BoardTopBar, type BoardChrome, type ExportFormat } from "@/components/c
 import { DRAG_MIME, SHAPE_KIND_MIME, type ToolSpec } from "@/components/canvas/tools";
 import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
-import { ItemTrashPanel } from "@/components/canvas/ItemTrashPanel";
 import { CommentPins } from "@/components/canvas/CommentPins";
 import { listComments, type Comment } from "@/lib/comments";
 import { ExitPresentIcon } from "@/components/icons/VosIcons";
@@ -105,7 +104,6 @@ function BoardSurface({
   const actions = useCanvasActions();
   const { theme } = useTheme();
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [itemTrashOpen, setItemTrashOpen] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const [presenting, setPresenting] = useState(false);
@@ -185,10 +183,7 @@ function BoardSurface({
         // Their triggers (Kommentare in the header, Papierkorb in the rail)
         // sit nowhere near these docked sidebars, so a plain click-away ref
         // doesn't apply — clicking into the board itself closes them instead.
-        if (event.type === "canvasPointerDown") {
-          setCommentsOpen(false);
-          setItemTrashOpen(false);
-        }
+        if (event.type === "canvasPointerDown") setCommentsOpen(false);
       }),
     [editor, router, actions],
   );
@@ -297,25 +292,12 @@ function BoardSurface({
             editor={editor}
             chrome={chrome}
             onExport={onExport}
-            onToggleComments={() => {
-              setItemTrashOpen(false);
-              setCommentsOpen((v) => !v);
-            }}
+            onToggleComments={() => setCommentsOpen((v) => !v)}
             onPresent={() => setPresenting(true)}
             saveState={saveState}
           />
 
-          <CanvasRail
-            editor={editor}
-            canComment={canComment}
-            trashOpen={itemTrashOpen}
-            onToggleTrash={() => {
-              setCommentsOpen(false);
-              setItemTrashOpen((v) => !v);
-            }}
-            onToolDragStart={startToolDrag}
-            onToolActivate={() => setItemTrashOpen(false)}
-          />
+          <CanvasRail editor={editor} canComment={canComment} onToolDragStart={startToolDrag} />
           <ZoomPill editor={editor} />
           {dragGhost && (
             <div
@@ -342,11 +324,6 @@ function BoardSurface({
             comments={comments}
             open={commentsOpen}
             onClose={() => setCommentsOpen(false)}
-          />
-          <ItemTrashPanel
-            editor={editor}
-            open={itemTrashOpen}
-            onClose={() => setItemTrashOpen(false)}
           />
         </>
       )}

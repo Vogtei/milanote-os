@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# milanote-os
 
-## Getting Started
+A self-hostable, 1:1 clone of [Milanote](https://milanote.com) — an infinite visual canvas for organizing ideas, notes, images, links, and to-dos into moodboards and project boards.
 
-First, run the development server:
+Own your boards. No subscription, no vendor lock-in, no third-party server holding your data.
+
+## Features
+
+- **Infinite canvas board** — a custom HTML5-canvas renderer (no external whiteboard library) with notes, rich text, to-do checklists, images, file/document cards, links with auto-fetched previews, freehand drawing, arrows (with live shape binding), and twelve shape types
+- **Nested boards** — boards can contain boards, mirroring Milanote's folder-like organization
+- **Per-board item trash** — deleted cards are recoverable, not gone the instant you hit delete
+- **Comments** — drop a pin anywhere on the board and browse them in a dedicated sidebar
+- **Sharing** — generate view/comment/edit links per board, redeemable by anyone with the link
+- **Export** — PNG and PDF export of a full board
+- **Presentation mode** — full-screen, chrome-free view for walking a board with a client
+- **JSON backup** — export and re-import all your boards as a single file, no lock-in
+- **Browser clipper extension** — save a page, image, or selection straight to a board from the browser's context menu
+- **Light & dark themes**
+- **Magic-link auth** — no passwords to manage
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | [Next.js](https://nextjs.org) (App Router), React, TypeScript |
+| Canvas engine | Hand-rolled — own model/store/camera/renderer, no tldraw/Fabric/Konva |
+| Database | PostgreSQL via [Prisma](https://www.prisma.io) |
+| Auth | [Auth.js](https://authjs.dev) (NextAuth v5), email magic links via Nodemailer |
+| File storage | S3-compatible object storage ([MinIO](https://min.io) for local dev) |
+| Styling | Tailwind CSS v4 |
+| Export | jsPDF |
+
+## Running locally
 
 ```bash
+docker compose up -d      # Postgres, MinIO, Maildev (catches magic-link emails at :1080)
+cp .env.example .env      # fill in the values
+npx prisma migrate deploy
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Browser extension
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+A small clipper extension lives in [`extension/`](extension) — load it unpacked via your browser's extensions page to save content from any page directly to a board.

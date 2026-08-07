@@ -14,17 +14,13 @@ import {
   SettingsIcon,
   SunIcon,
   MoonIcon,
-  ChevronDownIcon,
-  HomeIcon,
   PdfIcon,
   PngFileIcon,
   PresentIcon,
-  MinusIcon,
-  PlusIcon,
-  FitIcon,
 } from "@/components/icons/VosIcons";
 import { CommentIcon } from "@/components/icons/ContentIcons";
 import { SettingsModal } from "@/components/SettingsModal";
+import { VellumMark } from "@/components/VellumMark";
 import { useEditorTick } from "@/components/canvas/useEditorTick";
 import { useTheme } from "@/components/ThemeProvider";
 import { useClickAway } from "@/components/useClickAway";
@@ -60,16 +56,14 @@ export function BoardTopBar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [zoomOpen, setZoomOpen] = useState(false);
   const readonly = editor.isReadonly();
   const { theme, setPreference } = useTheme();
 
   const exportRef = useClickAway(exportOpen, () => setExportOpen(false));
-  const zoomRef = useClickAway(zoomOpen, () => setZoomOpen(false));
 
   // Clicking into the board collapses whatever popover the header opened —
-  // Export/Zoom already get this for free from useClickAway (the canvas is
-  // "outside" either wrapper), but Search has no wrapper of its own to be
+  // Export already gets this for free from useClickAway (the canvas is
+  // "outside" its wrapper), but Search has no wrapper of its own to be
   // outside of, so it listens for the editor's own pointerdown directly.
   useEffect(
     () =>
@@ -137,31 +131,9 @@ export function BoardTopBar({
 
           {chrome.share}
 
-          <div ref={zoomRef} className="relative">
-            <button
-              type="button"
-              title="Zoom"
-              aria-label="Zoom"
-              onClick={() => setZoomOpen((v) => !v)}
-              className={`flex h-[34px] shrink-0 items-center gap-0.5 rounded-lg px-2 text-[12px] font-medium tabular-nums transition-colors ${
-                zoomOpen
-                  ? "bg-[var(--vos-hover)] text-[var(--vos-text-strong)]"
-                  : "text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-              }`}
-            >
-              {Math.round(editor.getCamera().z * 100)}%
-              <ChevronDownIcon size={12} />
-            </button>
-            {zoomOpen && (
-              <ZoomMenu
-                editor={editor}
-                onPresent={() => {
-                  setZoomOpen(false);
-                  onPresent();
-                }}
-              />
-            )}
-          </div>
+          <IconBtn label="Präsentieren" onClick={onPresent}>
+            <PresentIcon />
+          </IconBtn>
 
           <IconBtn
             label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
@@ -190,8 +162,9 @@ function Breadcrumb({ chrome }: { chrome: BoardChrome }) {
     "shrink-0 truncate rounded-[7px] px-1.5 py-1 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]";
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <Link href="/" title="Übersicht" className={`${crumbClass} flex items-center gap-1`}>
-        <HomeIcon size={15} />
+      <Link href="/" title="Übersicht" className={`${crumbClass} flex items-center gap-1.5`}>
+        <VellumMark size={18} />
+        Home
       </Link>
       {chrome.ancestors.map((ancestor) => (
         <span key={ancestor.id} className="flex min-w-0 shrink items-center gap-1">
@@ -241,64 +214,6 @@ function ExportMenu({ onExport }: { onExport: (format: ExportFormat) => void }) 
         <PngFileIcon size={18} className="mt-0.5 shrink-0 text-[var(--vos-muted)]" />
         <span className="block text-[13px] text-[var(--vos-text)]">PNG-Bild</span>
       </button>
-    </div>
-  );
-}
-
-const ZOOM_MIN = 10;
-const ZOOM_MAX = 800;
-
-function ZoomMenu({
-  editor,
-  onPresent,
-}: {
-  editor: BoardEditor;
-  onPresent: () => void;
-}) {
-  const pct = Math.round(editor.getCamera().z * 100);
-
-  return (
-    <div className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-64 flex-col gap-2.5 rounded-xl p-3">
-      <div>
-        <div className="flex items-center gap-2">
-          <IconBtn label="Verkleinern" onClick={() => editor.zoomOut()}>
-            <MinusIcon size={16} />
-          </IconBtn>
-          <input
-            type="range"
-            min={ZOOM_MIN}
-            max={ZOOM_MAX}
-            value={pct}
-            onChange={(e) => editor.setZoom(Number(e.target.value) / 100)}
-            className="flex-1 accent-[var(--vos-text-strong)]"
-          />
-          <IconBtn label="Vergrößern" onClick={() => editor.zoomIn()}>
-            <PlusIcon size={16} />
-          </IconBtn>
-        </div>
-        <div className="mt-1 text-center text-[12px] tabular-nums text-[var(--vos-muted)]">{pct}%</div>
-      </div>
-
-      <button
-        onClick={() => editor.zoomToFit()}
-        className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--vos-border)] py-1.5 text-[12px] font-medium text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-      >
-        <FitIcon size={14} /> Auf Bildschirm einpassen
-      </button>
-
-      <span className="h-px bg-[var(--vos-border)]" />
-
-      <div>
-        <p className="text-[11px] leading-snug text-[var(--vos-faint)]">
-          Vollbild, Werkzeugleiste und Kopfzeile ausblenden.
-        </p>
-        <button
-          onClick={onPresent}
-          className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--vos-text-strong)] py-1.5 text-[12px] font-medium text-[var(--vos-bg)]"
-        >
-          <PresentIcon size={14} /> Präsentieren
-        </button>
-      </div>
     </div>
   );
 }

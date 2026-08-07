@@ -10,6 +10,7 @@ import { PALETTES } from "@/canvas/theme";
 import { saveBoardDoc } from "@/lib/board-doc";
 import { VosCanvas } from "@/components/canvas/VosCanvas";
 import { CanvasRail, runTool } from "@/components/canvas/CanvasRail";
+import { ZoomPill } from "@/components/canvas/ZoomPill";
 import { SelectionToolbar } from "@/components/canvas/SelectionToolbar";
 import { MobileBar } from "@/components/canvas/MobileBar";
 import { CanvasActionsProvider, useCanvasActions } from "@/components/canvas/CanvasActions";
@@ -314,6 +315,7 @@ function BoardSurface({
             }}
             onToolDragStart={startToolDrag}
           />
+          <ZoomPill editor={editor} />
           {dragGhost && (
             <div
               className="pointer-events-none fixed z-[500] -translate-x-1/2 -translate-y-1/2"

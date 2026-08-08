@@ -76,7 +76,7 @@ export function SelectionToolbar({ editor }: { editor: BoardEditor }) {
             />
           </button>
           {paletteOpen && (
-            <div className="vos-panel vos-panel-shadow absolute left-0 top-[42px] grid grid-cols-4 gap-2 rounded-2xl p-2.5">
+            <div className="vos-panel vos-panel-shadow absolute left-0 top-[42px] grid w-[140px] grid-cols-4 gap-2 rounded-2xl p-2.5">
               {NOTE_COLORS.map((color) => (
                 <button
                   key={color}

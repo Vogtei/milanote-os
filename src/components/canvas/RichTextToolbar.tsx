@@ -123,7 +123,7 @@ export function RichTextToolbar({
           <span className="h-4 w-4 rounded-full border border-[var(--vos-border)]" style={{ background: palette.text }} />
         </button>
         {colorOpen && (
-          <div className="vos-panel vos-panel-shadow absolute left-0 top-[42px] grid grid-cols-4 gap-2 rounded-2xl p-2.5">
+          <div className="vos-panel vos-panel-shadow absolute left-0 top-[42px] grid w-[140px] grid-cols-4 gap-2 rounded-2xl p-2.5">
             {NOTE_COLORS.map((color) => (
               <button
                 key={color}

@@ -20,7 +20,6 @@ import { DocumentWindow } from "@/components/canvas/DocumentWindow";
 import { CommentsPanel } from "@/components/CommentsPanel";
 import { CommentPins } from "@/components/canvas/CommentPins";
 import { listComments, type Comment } from "@/lib/comments";
-import { ExitPresentIcon } from "@/components/icons/VosIcons";
 import { useTheme } from "@/components/ThemeProvider";
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -106,32 +105,10 @@ function BoardSurface({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
-  const [presenting, setPresenting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [dragGhost, setDragGhost] = useState<{ tool: ToolSpec; x: number; y: number } | null>(null);
-
-  // Presentation mode: real browser fullscreen with the chrome hidden. The
-  // two effects stay one-directional each way so they don't fight each
-  // other — entering/leaving `presenting` drives fullscreen, and the
-  // browser's own fullscreenchange (e.g. the user pressing Escape) drives
-  // `presenting` back, never the reverse in the same tick.
-  useEffect(() => {
-    function onFullscreenChange() {
-      if (!document.fullscreenElement) setPresenting(false);
-    }
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
-
-  useEffect(() => {
-    if (presenting) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
-    } else if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch(() => {});
-    }
-  }, [presenting]);
 
   // Autosave. Debounced so a drag doesn't fire a request per frame, and
   // flushed on unload so closing the tab mid-edit doesn't lose the last change.
@@ -275,29 +252,18 @@ function BoardSurface({
       onDrop={onDrop}
     >
       <VosCanvas editor={editor} boardCounts={boardCounts} />
-      {!presenting && comments && <CommentPins editor={editor} comments={comments} />}
+      {comments && <CommentPins editor={editor} comments={comments} />}
 
-      {presenting ? (
-        <button
-          type="button"
-          onClick={() => setPresenting(false)}
-          title="Präsentation beenden (Esc)"
-          className="vos-panel vos-panel-shadow absolute right-3.5 top-3.5 z-[300] flex h-9 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium text-[var(--vos-muted)] hover:text-[var(--vos-text-strong)]"
-        >
-          <ExitPresentIcon size={16} /> Beenden
-        </button>
-      ) : (
-        <>
-          <BoardTopBar
-            editor={editor}
-            chrome={chrome}
-            onExport={onExport}
-            onToggleComments={() => setCommentsOpen((v) => !v)}
-            onPresent={() => setPresenting(true)}
-            saveState={saveState}
-          />
+      <>
+        <BoardTopBar
+          editor={editor}
+          chrome={chrome}
+          onExport={onExport}
+          onToggleComments={() => setCommentsOpen((v) => !v)}
+          saveState={saveState}
+        />
 
-          <CanvasRail editor={editor} canComment={canComment} onToolDragStart={startToolDrag} />
+        <CanvasRail editor={editor} canComment={canComment} onToolDragStart={startToolDrag} />
           <ZoomPill editor={editor} />
           {dragGhost && (
             <div
@@ -325,8 +291,7 @@ function BoardSurface({
             open={commentsOpen}
             onClose={() => setCommentsOpen(false)}
           />
-        </>
-      )}
+      </>
     </div>
   );
 }

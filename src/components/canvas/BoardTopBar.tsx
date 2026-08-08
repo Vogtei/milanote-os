@@ -16,7 +16,6 @@ import {
   MoonIcon,
   PdfIcon,
   PngFileIcon,
-  PresentIcon,
 } from "@/components/icons/VosIcons";
 import { CommentIcon } from "@/components/icons/ContentIcons";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -42,14 +41,12 @@ export function BoardTopBar({
   chrome,
   onExport,
   onToggleComments,
-  onPresent,
   saveState,
 }: {
   editor: BoardEditor;
   chrome: BoardChrome;
   onExport: (format: ExportFormat) => void;
   onToggleComments: () => void;
-  onPresent: () => void;
   saveState: "idle" | "saving" | "error";
 }) {
   useEditorTick(editor);
@@ -131,9 +128,7 @@ export function BoardTopBar({
 
           {chrome.share}
 
-          <IconBtn label="Präsentieren" onClick={onPresent}>
-            <PresentIcon />
-          </IconBtn>
+          <span className="mx-1.5 h-4 w-px shrink-0 bg-[var(--vos-border)]" />
 
           <IconBtn
             label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
@@ -161,13 +156,13 @@ function Breadcrumb({ chrome }: { chrome: BoardChrome }) {
   const crumbClass =
     "shrink-0 truncate rounded-[7px] px-1.5 py-1 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]";
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <Link href="/" title="Übersicht" className={`${crumbClass} flex items-center gap-1.5`}>
+    <div className="flex min-w-0 items-center gap-2">
+      <Link href="/" title="Übersicht" className={`${crumbClass} flex items-center gap-2`}>
         <VellumMark size={18} />
         Home
       </Link>
       {chrome.ancestors.map((ancestor) => (
-        <span key={ancestor.id} className="flex min-w-0 shrink items-center gap-1">
+        <span key={ancestor.id} className="flex min-w-0 shrink items-center gap-2">
           <span className="text-[var(--vos-faint)]">/</span>
           <Link href={`/board/${ancestor.id}`} className={crumbClass}>
             {ancestor.title}
@@ -177,7 +172,7 @@ function Breadcrumb({ chrome }: { chrome: BoardChrome }) {
       {/* Current board again, as plain text — the centered title says the
           same thing, but a nav trail that stops one short of "you are here"
           isn't actually a nav trail. */}
-      <span className="flex min-w-0 shrink items-center gap-1">
+      <span className="flex min-w-0 shrink items-center gap-2">
         <span className="text-[var(--vos-faint)]">/</span>
         <span className="shrink-0 truncate px-1.5 py-1 text-[13px] font-medium text-[var(--vos-text-strong)]">
           {chrome.title}

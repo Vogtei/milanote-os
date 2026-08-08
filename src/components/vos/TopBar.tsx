@@ -7,29 +7,31 @@ import { VellumMark } from "@/components/VellumMark";
 // measures at in the browser; the markup and styling are our own.
 export function TopBar({ children }: { children: React.ReactNode }) {
   return (
-    <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-0.5 rounded-b-2xl pl-3.5 pr-1.5">
+    <header className="vos-panel vos-panel-shadow fixed left-0 right-0 top-0 z-[300] flex h-[52px] items-center gap-2 pl-3.5 pr-1.5">
       {children}
     </header>
   );
 }
 
-// Workspace chip: the Vellum mark, standing in for the whole "which
-// workspace am I in" switcher. Links home rather than opening a menu — we
-// only have one workspace per user.
+// Workspace chip: the Vellum mark + "Home" label, standing in for the whole
+// "which workspace am I in" switcher — same logo+label pairing the per-board
+// breadcrumb uses (BoardTopBar.tsx), so both headers read the same way.
+// Links home rather than opening a menu — we only have one workspace per user.
 export function WorkspaceCrumb({ label }: { label: string }) {
   return (
     <Link
       href="/"
       title={label}
-      className="flex items-center rounded-[7px] p-1 hover:bg-[var(--vos-hover-soft)]"
+      className="flex items-center gap-2 rounded-[7px] p-1 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
     >
       <VellumMark size={22} />
+      Home
     </Link>
   );
 }
 
 export function CrumbDivider() {
-  return <span className="mx-1.5 h-4 w-px shrink-0 bg-[var(--vos-border)]" />;
+  return <span className="h-4 w-px shrink-0 bg-[var(--vos-border)]" />;
 }
 
 export function Crumb({ label, href }: { label: string; href?: string }) {

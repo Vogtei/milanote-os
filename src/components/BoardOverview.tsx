@@ -1,26 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { createNode, deleteNode, listChildren } from "@/lib/nodes";
 import { NodeType } from "@/generated/prisma/enums";
-import { TopBar, WorkspaceCrumb, CrumbDivider, Crumb, TopBarSpacer } from "@/components/vos/TopBar";
+import { TopBar, WorkspaceCrumb, TopBarSpacer } from "@/components/vos/TopBar";
 import { IconBtn } from "@/components/vos/IconBtn";
-import { KebabIcon, PlusIcon, SearchIcon } from "@/components/icons/VosIcons";
+import { PlusIcon, SearchIcon, SunIcon, MoonIcon, SettingsIcon } from "@/components/icons/VosIcons";
 import { BoardIcon, TrashIcon } from "@/components/icons/ContentIcons";
-import { signOutAction } from "@/lib/auth-actions";
+import { SettingsModal } from "@/components/SettingsModal";
+import { useTheme } from "@/components/ThemeProvider";
 
 type BoardNode = { id: string; title: string };
 
 // Replaces the old left sidebar: with the board tree gone from the chrome,
 // this page is where you pick or create a board.
-export function BoardOverview({ email }: { email: string }) {
+export function BoardOverview({
+  email,
+  name,
+}: {
+  email: string;
+  name: string | null;
+}) {
   const [boards, setBoards] = useState<BoardNode[] | null>(null);
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { theme, setPreference } = useTheme();
 
   async function reload() {
     setBoards((await listChildren(null)) as BoardNode[]);
@@ -66,8 +74,6 @@ export function BoardOverview({ email }: { email: string }) {
     <div className="h-full overflow-y-auto">
       <TopBar>
         <WorkspaceCrumb label="Workspace" />
-        <CrumbDivider />
-        <Crumb label="Übersicht" />
         <TopBarSpacer />
         <div className="relative mr-1 hidden sm:block">
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--vos-faint)]">
@@ -80,13 +86,25 @@ export function BoardOverview({ email }: { email: string }) {
             className="h-[34px] w-52 rounded-lg border border-[var(--vos-border)] bg-[var(--vos-bg)] pl-7 pr-2 text-[13px] text-[var(--vos-text)] outline-none placeholder:text-[var(--vos-faint)] focus:border-[var(--vos-faint)]"
           />
         </div>
-        <div className="relative">
-          <IconBtn label="Menü" active={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
-            <KebabIcon />
-          </IconBtn>
-          {menuOpen && <AccountMenu email={email} onClose={() => setMenuOpen(false)} />}
-        </div>
+
+        <span className="mx-1.5 h-4 w-px shrink-0 bg-[var(--vos-border)]" />
+
+        <IconBtn
+          label={theme === "dark" ? "Helles Erscheinungsbild" : "Dunkles Erscheinungsbild"}
+          onClick={() => setPreference(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? <MoonIcon /> : <SunIcon />}
+        </IconBtn>
+        <IconBtn label="Einstellungen" active={settingsOpen} onClick={() => setSettingsOpen(true)}>
+          <SettingsIcon />
+        </IconBtn>
       </TopBar>
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        user={{ name, email }}
+      />
 
       <div className="mx-auto max-w-5xl px-6 pb-16 pt-[84px]">
         {boards === null ? (
@@ -146,35 +164,3 @@ export function BoardOverview({ email }: { email: string }) {
   );
 }
 
-function AccountMenu({ email, onClose }: { email: string; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDocPointerDown(e: PointerEvent) {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("pointerdown", onDocPointerDown);
-    return () => document.removeEventListener("pointerdown", onDocPointerDown);
-  }, [onClose]);
-
-  return (
-    <div
-      ref={ref}
-      className="vos-panel vos-panel-shadow absolute right-0 top-[42px] z-[310] flex w-60 flex-col rounded-xl p-1.5"
-    >
-      <span className="truncate px-2 py-1.5 text-xs text-[var(--vos-faint)]">{email}</span>
-      <Link
-        href="/trash"
-        className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
-      >
-        <TrashIcon /> Papierkorb
-      </Link>
-      <span className="my-1 h-px bg-[var(--vos-border)]" />
-      <form action={signOutAction}>
-        <button className="w-full rounded-lg px-2 py-2 text-left text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]">
-          Abmelden
-        </button>
-      </form>
-    </div>
-  );
-}

@@ -22,9 +22,9 @@ export function WorkspaceCrumb({ label }: { label: string }) {
     <Link
       href="/"
       title={label}
-      className="flex items-center gap-2 rounded-[7px] p-1 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+      className="flex shrink-0 items-center gap-2 truncate rounded-[7px] px-1.5 py-1 text-[13px] text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
     >
-      <VellumMark size={22} />
+      <VellumMark size={18} />
       Home
     </Link>
   );
@@ -35,11 +35,10 @@ export function CrumbDivider() {
 }
 
 export function Crumb({ label, href }: { label: string; href?: string }) {
-  const className =
-    "truncate text-[15px] font-medium tracking-[-0.2px] text-[var(--vos-text)]";
+  const className = "shrink-0 truncate rounded-[7px] px-1.5 py-1 text-[13px] text-[var(--vos-muted)]";
   if (!href) return <span className={className}>{label}</span>;
   return (
-    <Link href={href} className={`${className} hover:text-[var(--vos-text-strong)]`}>
+    <Link href={href} className={`${className} hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]`}>
       {label}
     </Link>
   );

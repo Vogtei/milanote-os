@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { signOutAction } from "@/lib/auth-actions";
 import { exportAllBoards, importBoards } from "@/lib/backup";
 import { useCanvasPrefs } from "@/components/CanvasPrefsProvider";
 import { CloseIcon, ExportImageIcon, UploadIcon } from "@/components/icons/VosIcons";
+import { TrashIcon } from "@/components/icons/ContentIcons";
 
 type Tab = "profile" | "canvas" | "data";
 
@@ -206,6 +208,19 @@ function DataTab() {
       </div>
 
       {message && <p className="text-[12px] text-[var(--vos-muted)]">{message}</p>}
+
+      <span className="h-px bg-[var(--vos-border)]" />
+
+      <div>
+        <div className="text-[13px] font-medium text-[var(--vos-text)]">Papierkorb</div>
+        <p className="mt-0.5 text-[12px] text-[var(--vos-faint)]">Gelöschte Boards wiederherstellen.</p>
+        <Link
+          href="/trash"
+          className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-[var(--vos-border)] px-3 py-1.5 text-[13px] font-medium text-[var(--vos-muted)] hover:bg-[var(--vos-hover-soft)] hover:text-[var(--vos-text-strong)]"
+        >
+          <TrashIcon size={16} /> Papierkorb öffnen
+        </Link>
+      </div>
     </div>
   );
 }

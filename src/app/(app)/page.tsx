@@ -6,5 +6,5 @@ export default async function Home() {
   const session = await auth();
   if (!session?.user) redirect("/signin");
 
-  return <BoardOverview email={session.user.email ?? ""} />;
+  return <BoardOverview email={session.user.email ?? ""} name={session.user.name ?? null} />;
 }

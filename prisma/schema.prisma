@@ -20,6 +20,10 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  /** Bcrypt hash. Null until the user sets a password (see
+   *  src/lib/password-auth.ts) — magic-link stays the only way in until
+   *  then, so existing/mid-activation accounts are unaffected. */
+  password      String?
 
   accounts Account[]
   sessions Session[]

@@ -120,15 +120,21 @@ function withShadow(ctx: CanvasRenderingContext2D, palette: CanvasPalette, fn: (
   ctx.restore();
 }
 
-function drawItem(ctx: CanvasRenderingContext2D, item: AnyItem, state: RenderState, lookup: ItemLookup) {
+function drawItem(
+  ctx: CanvasRenderingContext2D,
+  item: AnyItem,
+  state: RenderState,
+  lookup: ItemLookup,
+  skipLabel = false,
+) {
   switch (item.type) {
     case "note": return drawNote(ctx, item, state);
     case "text": return drawText(ctx, item, state);
     case "image": return drawImageItem(ctx, item, state);
     case "link": return drawLink(ctx, item, state);
     case "file": return drawFile(ctx, item, state);
-    case "board": return drawFolder(ctx, item, state);
-    case "document": return drawDocument(ctx, item, state);
+    case "board": return drawFolder(ctx, item, state, skipLabel);
+    case "document": return drawDocument(ctx, item, state, skipLabel);
     case "todo": return drawTodo(ctx, item, state);
     case "shape": return drawShape(ctx, item, state);
     case "draw": return drawStroke(ctx, item, state);
@@ -367,7 +373,7 @@ function formatSize(bytes: number): string {
 // A nested board reads as a folder: a plain tile, then the name and how much
 // is inside it underneath — the label sits outside the tile so long names
 // aren't clipped by it.
-function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState) {
+function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: RenderState, skipLabel = false) {
   const tileH = containerTileHeight(item);
   const tile = containerTileRect(item);
 
@@ -378,6 +384,13 @@ function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: R
   ctx.strokeStyle = state.palette.cardBorder;
   ctx.lineWidth = 1;
   ctx.stroke();
+
+  // The hover-scale redraw pass repaints the whole item slightly larger,
+  // scaled around the *tile's* center (see drawSelection) — the label sits
+  // below the tile, so scaling it too would shift it away from its already-
+  // painted base position and read as ghosted double text. Only the tile
+  // itself needs the hover treatment; the label already exists at 1x.
+  if (skipLabel) return;
 
   const cx = item.x + item.w / 2;
   ctx.textAlign = "center";
@@ -405,7 +418,12 @@ function drawFolder(ctx: CanvasRenderingContext2D, item: Item<"board">, state: R
 
 // Same silhouette as the folder — sheet, then name, then length — so a board
 // full of containers reads as one family of cards.
-function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, state: RenderState) {
+function drawDocument(
+  ctx: CanvasRenderingContext2D,
+  item: Item<"document">,
+  state: RenderState,
+  skipLabel = false,
+) {
   const sheet = documentSheetRect(item);
   const sheetH = sheet.h;
   const sheetW = sheet.w;
@@ -441,6 +459,11 @@ function drawDocument(ctx: CanvasRenderingContext2D, item: Item<"document">, sta
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("T", x + sheetW / 2, y + sheetH * 0.58);
+
+  // Same reasoning as drawFolder's skipLabel: the hover-scale redraw pass
+  // scales around the sheet's own center, and the label sits below it —
+  // scaling it too would shift it off its already-painted base position.
+  if (skipLabel) return;
 
   const cx = item.x + item.w / 2;
   ctx.textBaseline = "top";
@@ -553,12 +576,30 @@ function shapePath(ctx: CanvasRenderingContext2D, item: Item<"shape">) {
       ctx.closePath();
       break;
     case "bubble": {
+      // One continuous outline — body and tail have to be a single path, not
+      // ctx.roundRect() (a closed subpath of its own) plus a separate tail
+      // subpath: stroking two independent-but-touching subpaths left the
+      // rect's own complete bottom edge visible right through the tail's
+      // attachment points, a stray seam line where the two "shapes" met
+      // instead of one merged silhouette.
       const body = h * 0.78;
       const r = Math.min(w, body) * 0.18;
-      ctx.roundRect(x, y, w, body, r);
-      ctx.moveTo(x + w * 0.24, y + body);
-      ctx.lineTo(x + w * 0.2, y + h);
-      ctx.lineTo(x + w * 0.44, y + body);
+      const tailStart = x + w * 0.2;
+      const tailEnd = x + w * 0.36;
+      const tipX = x + w * 0.16;
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + body - r);
+      ctx.arcTo(x + w, y + body, x + w - r, y + body, r);
+      ctx.lineTo(tailEnd, y + body);
+      ctx.lineTo(tipX, y + h);
+      ctx.lineTo(tailStart, y + body);
+      ctx.lineTo(x + r, y + body);
+      ctx.arcTo(x, y + body, x, y + body - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
       break;
     }
     case "parallelogram": {
@@ -789,7 +830,7 @@ function drawSelection(ctx: CanvasRenderingContext2D, state: RenderState, lookup
       ctx.translate(cx, cy);
       ctx.scale(1.03, 1.03);
       ctx.translate(-cx, -cy);
-      drawItem(ctx, item, state, lookup);
+      drawItem(ctx, item, state, lookup, true);
       ctx.restore();
       drawResizeAffordance(ctx, item, bounds, palette, camera);
     }
